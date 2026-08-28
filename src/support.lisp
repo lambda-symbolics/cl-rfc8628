@@ -51,12 +51,9 @@
     (yason:encode value stream)))
 
 (defun json-decode (text)
-  "Decode JSON TEXT with objects as EQUAL hash tables."
-  (yason:parse text
-               :object-as ':hash-table
-               :json-arrays-as-vectors t
-               :json-booleans-as-symbols nil
-               :json-nulls-as-keyword nil))
+  "Decode one JSON value from TEXT with arrays as vectors."
+  (let ((yason:*parse-json-arrays-as-vectors* t))
+    (yason:parse text)))
 
 
 ;;;; -- Base64 and Epochs --
