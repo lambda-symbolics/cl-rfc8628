@@ -1,0 +1,84 @@
+#+title: cl-rfc8628
+
+The OAuth 2.0 device authorization grant (RFC 8628) as a small CLOS
+protocol.
+
+The library defines a device authentication client with injected
+transport, clock, sleep, and browser effects, a credential store
+protocol, unverified JWT claim readers, and exact-string secret
+redaction. Providers subclass the RFC 8628 client to validate
+provider-specific token claims, resolve account identity, and publish
+credentials through their own stores. Proprietary device flows can
+subclass the base client and reuse the same transport and failure
+protocol.
+
+* Systems and package
+
+- ASDF system: =cl-rfc8628=
+- Test system: =cl-rfc8628/tests=
+- Package: =CL-RFC8628=
+- Nickname: =RFC8628=
+
+Install the locked dependencies and run all tests:
+
+#+begin_src sh
+./script/bootstrap
+./script/check
+#+end_src
+
+* The device flow
+
+#+begin_src lisp
+(defclass portal-client (rfc8628:rfc8628-device-authentication-client)
+  ())
+
+(rfc8628:device-authentication-login
+ (make-instance 'portal-client
+                :issuer "https://portal.example"
+                :client-id "public-client-id"
+                :device-code-path "/oauth2/device/code"
+                :token-path "/oauth2/token"
+                :scope "openid offline_access"
+                :request-function #'rfc8628:device-authentication-request
+                :poll-function #'rfc8628:rfc8628-device-authentication-poll-for-tokens)
+ manager)
+#+end_src
+
+=DEVICE-AUTHENTICATION-LOGIN= requests a device code, displays the
+verification URL and user code, optionally opens the browser, polls
+through =authorization_pending= and =slow_down= responses, validates the
+token document, and publishes =OAUTH-CREDENTIALS= through the manager's
+primary source. Failures signal =DEVICE-AUTHENTICATION-ERROR= carrying a
+stage, an optional HTTP status, and a redacted OAuth error code.
+
+* Provider hooks
+
+- =RFC8628-DEVICE-AUTHENTICATION-AUTHORIZATION-CLASS= names the pending
+  authorization class.
+- =RFC8628-DEVICE-AUTHENTICATION-VALIDATE-TOKEN-RESPONSE= rejects token
+  documents missing provider-specific claims.
+- =RFC8628-DEVICE-AUTHENTICATION-ACCOUNT-ID= resolves the stable account
+  identity, by default from the OpenID or access token subject.
+- =RFC8628-DEVICE-AUTHENTICATION-PUBLISH-CREDENTIALS= persists approved
+  credentials, by default through the primary source.
+
+* Host hooks
+
+- =*SECRET-REGION-FUNCTION*= wraps every code path holding secret
+  material, for hosts with credential-scoping machinery.
+- =*USER-AGENT-FUNCTION*= names the client on the wire.
+- =*DEVICE-AUTHENTICATION-ERROR-CLASS*= substitutes a condition subclass
+  joining the host's own hierarchy.
+
+* Store protocol
+
+=CREDENTIAL-SOURCE= and =CREDENTIAL-MANAGER= are abstract. Hosts
+implement =CREDENTIAL-SOURCE-LOAD=, =CREDENTIAL-SOURCE-SAVE=,
+=CREDENTIAL-SOURCE-PATHNAME=, =CREDENTIAL-SOURCE-LABEL=, and
+=CREDENTIAL-MANAGER-PRIMARY-SOURCE=. =CREDENTIAL-MANAGER-ACCEPT-ACCOUNT=
+validates account continuity before persistence and accepts everything
+by default.
+
+* License
+
+COLL-Attribution. See =LICENSE.lisp=.
