@@ -19,8 +19,13 @@
   'hash-table)
 
 (defun non-empty-string-p (value)
-  "Return true when VALUE is a string with at least one character."
-  (and (stringp value) (plusp (length value)) t))
+  "Return true when VALUE is a string containing a non-whitespace character."
+  (and (stringp value)
+       (not (every (lambda (character)
+                     (find character
+                           '(#\Space #\Tab #\Newline #\Return #\Page)))
+                   value))
+       t))
 
 
 ;;;; -- JSON --
