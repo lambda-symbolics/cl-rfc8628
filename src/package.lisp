@@ -70,6 +70,7 @@
    #:device-authentication-monotonic-seconds
    #:device-authentication-open-browser
    #:device-authentication-poll-interval
+   #:device-authentication-request
    #:device-authentication-request-code
    #:device-authentication-success-status-p
    #:device-authentication-user-agent
@@ -86,6 +87,7 @@
    #:rfc8628-device-authentication-client-request-code-parameters
    #:rfc8628-device-authentication-client-scope
    #:rfc8628-device-authentication-client-token-path
+   #:rfc8628-device-authentication-poll-for-tokens
    #:rfc8628-device-authentication-publish-credentials
    #:rfc8628-device-authentication-validate-token-response
    #:rfc8628-device-authorization
