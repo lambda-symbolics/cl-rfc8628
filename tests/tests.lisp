@@ -333,5 +333,6 @@
   (test-complete-flow)
   (test-rejections)
   (test-request-code-validation)
+  (cl-rfc8628::run-manager-tests)
   (format t "~&~D cl-rfc8628 assertions passed.~%" *assertions*)
   t)

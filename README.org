@@ -72,12 +72,39 @@ stage, an optional HTTP status, and a redacted OAuth error code.
 
 * Store protocol
 
-=CREDENTIAL-SOURCE= and =CREDENTIAL-MANAGER= are abstract. Hosts
-implement =CREDENTIAL-SOURCE-LOAD=, =CREDENTIAL-SOURCE-SAVE=,
-=CREDENTIAL-SOURCE-PATHNAME=, =CREDENTIAL-SOURCE-LABEL=, and
-=CREDENTIAL-MANAGER-PRIMARY-SOURCE=. =CREDENTIAL-MANAGER-ACCEPT-ACCOUNT=
-validates account continuity before persistence and accepts everything
-by default.
+Implement =CREDENTIAL-SOURCE-LOAD=, =CREDENTIAL-SOURCE-SAVE=,
+=CREDENTIAL-SOURCE-PATHNAME=, and =CREDENTIAL-SOURCE-LABEL= for private
+storage. Loads must reread current storage. Implement durable atomic
+publication in the source; managed acquisition ignores the save result.
+
+=CREDENTIAL-MANAGER= is the minimal store protocol for device flows.
+Subclass =MANAGED-CREDENTIAL-MANAGER= to add credential acquisition and
+refresh coordination. Supply =:primary-source= and, optionally,
+=:bootstrap-source=. Override =CREDENTIAL-MANAGER-REFRESH-EXCHANGE= to
+exchange a refresh token. Return two values: refreshed credentials and
+whether to publish them. Return false for the second value when another
+process already published the rotation. Name the service and login action
+with =CREDENTIAL-MANAGER-PROVIDER-LABEL= and =CREDENTIAL-MANAGER-LOGIN-HINT=.
+
+Use =CALL-WITH-CREDENTIALS= or =WITH-CREDENTIALS= to acquire credentials
+and invoke a callback inside =*SECRET-REGION-FUNCTION*=. Acquisition rereads
+the primary source, imports only a valid bootstrap access token when the
+primary source is absent, and refreshes expiring credentials. Concurrent
+refresh callers share one exchange and one immutable success or failure.
+An abandoned leader releases waiters to retry. Coordination is local to
+one manager in one SBCL process; source implementations own cross-process
+serialization. Managers retain paths and account identity, not tokens.
+
+=CREDENTIAL-MANAGER-ACCEPT-ACCOUNT= pins the first account and rejects
+changes unless called with =:allow-change t=. After a provider-specific
+reused-token error, call =CREDENTIAL-MANAGER-NEWER-ROTATION= with the
+attempted token to reread and validate a newly stored rotation.
+
+Failures signal =CREDENTIAL-ERROR=, =CREDENTIALS-UNAVAILABLE=, or
+=TOKEN-REFRESH-FAILED=. Hosts can select matching condition classes with
+=*CREDENTIAL-ERROR-CLASS*=, =*CREDENTIALS-UNAVAILABLE-CLASS*=, and
+=*TOKEN-REFRESH-FAILED-CLASS*=. Preserve their initialization arguments
+and exclude secret-bearing values from errors returned by an exchange.
 
 * License
 

@@ -4,7 +4,8 @@
   :license "COLL-Attribution"
   :version "0.1.0"
   :serial t
-  :depends-on (#:cl-base64
+  :depends-on (#:bordeaux-threads
+               #:cl-base64
                #:dexador
                #:quri
                #:yason)
@@ -14,6 +15,7 @@
                              (:file "support")
                              (:file "store")
                              (:file "client")
+                             (:file "manager")
                              (:file "rfc8628"))))
   :in-order-to ((asdf:test-op (asdf:test-op #:cl-rfc8628/tests))))
 
@@ -23,7 +25,8 @@
   :serial t
   :components ((:module "tests"
                 :serial t
-                :components ((:file "tests"))))
+                :components ((:file "tests")
+                             (:file "manager"))))
   :perform (asdf:test-op (operation component)
              (declare (ignore operation component))
              (uiop:symbol-call '#:cl-rfc8628/tests '#:run-tests)))

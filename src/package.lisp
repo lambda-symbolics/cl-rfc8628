@@ -1,6 +1,9 @@
 (defpackage #:cl-rfc8628
   (:nicknames #:rfc8628)
   (:use #:cl)
+  (:import-from #:bordeaux-threads
+                #:make-lock #:with-lock-held #:make-condition-variable
+                #:condition-wait #:condition-notify)
   (:export
    ;; hooks
    #:*device-authentication-error-class*
@@ -26,6 +29,31 @@
    #:credential-manager
    #:credential-manager-accept-account
    #:credential-manager-primary-source
+   #:managed-credential-manager
+   #:credential-manager-account-id
+   #:credential-manager-bootstrap-source
+   #:credential-manager-provider-label
+   #:credential-manager-login-hint
+   #:credential-manager-credential-description
+   #:credential-manager-refreshable-p
+   #:credential-manager-refresh-exchange
+   #:credential-manager-import-bootstrap
+   #:credential-manager-load
+   #:credential-manager-refresh
+   #:credential-manager-credentials
+   #:credential-manager-newer-rotation
+   #:call-with-credentials
+   #:with-credentials
+   #:credential-error
+   #:credential-error-message
+   #:credentials-unavailable
+   #:credentials-unavailable-searched-paths
+   #:token-refresh-failed
+   #:token-refresh-failed-status
+   #:token-refresh-failed-response
+   #:*credential-error-class*
+   #:*credentials-unavailable-class*
+   #:*token-refresh-failed-class*
    #:credential-source
    #:credential-source-label
    #:credential-source-load
