@@ -32,9 +32,9 @@
           (environment-credential-source-environment-variable source)))
 
 (defmethod credential-source-load ((source environment-credential-source))
-  "Return SOURCE's credential from its environment variable, or NIL when unset or empty."
+  "Return SOURCE's credential from its environment variable, or NIL when unset or blank."
   (let ((value (uiop:getenv (environment-credential-source-environment-variable source))))
-    (when (and (stringp value) (plusp (length value)))
+    (when (non-empty-string-p value)
       (make-instance 'oauth-credentials
                      :access-token value
                      :refresh-token nil

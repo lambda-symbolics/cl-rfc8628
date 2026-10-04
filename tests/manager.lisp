@@ -654,9 +654,9 @@
                                  :bootstrap-source environment)))
     (unwind-protect
          (progn
-           (setf (uiop:getenv variable) "")
+           (setf (uiop:getenv variable) "  ")
            (cl-rfc8628/tests::check (null (credential-source-load environment))
-                                    "an empty environment variable holds no credential")
+                                    "a blank environment variable holds no credential")
            (cl-rfc8628/tests::check
             (string= (oauth-credentials-access-token (credential-manager-load manager))
                      "stored-key")
