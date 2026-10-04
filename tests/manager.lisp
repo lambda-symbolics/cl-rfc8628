@@ -637,8 +637,64 @@
        "expired bootstrap credentials cannot be imported"))))
 
 
+(defun oauth-test--static-credentials ()
+  "Test environment credential sources and the static credential manager."
+  (let* ((variable "CL_RFC8628_STATIC_TEST_KEY")
+         (environment (make-instance 'environment-credential-source
+                                     :environment-variable variable
+                                     :account-id "static-test"
+                                     :pathname #p"/tmp/static-test.sexp"))
+         (stored (make-instance 'oauth-credentials :access-token "stored-key"
+                                                   :account-id "static-test"))
+         (primary (make-instance 'oauth-test-memory-credential-source
+                                 :pathname #p"/tmp/stored-key.sexp"
+                                 :credentials stored))
+         (manager (make-instance 'static-credential-manager
+                                 :primary-source primary
+                                 :bootstrap-source environment)))
+    (unwind-protect
+         (progn
+           (setf (uiop:getenv variable) "")
+           (cl-rfc8628/tests::check (null (credential-source-load environment))
+                                    "an empty environment variable holds no credential")
+           (cl-rfc8628/tests::check
+            (string= (oauth-credentials-access-token (credential-manager-load manager))
+                     "stored-key")
+            "without the environment value the stored key loads")
+           (setf (uiop:getenv variable) "environment-key")
+           (let ((loaded (credential-source-load environment)))
+             (cl-rfc8628/tests::check
+              (and (string= (oauth-credentials-access-token loaded) "environment-key")
+                   (string= (oauth-credentials-account-id loaded) "static-test")
+                   (equal (oauth-credentials-source-path loaded) #p"/tmp/static-test.sexp")
+                   (search variable (credential-source-label environment)))
+              "the environment source loads its key under the pinned account"))
+           (cl-rfc8628/tests::check
+            (string= (oauth-credentials-access-token (credential-manager-load manager))
+                     "environment-key")
+            "the environment key takes precedence over the stored key")
+           (cl-rfc8628/tests::check
+            (and (not (credential-manager-refreshable-p manager))
+                 (string= (credential-manager-credential-description manager) "API key"))
+            "static credentials never refresh and are described as API keys")
+           (cl-rfc8628/tests::check
+            (handler-case (progn (credential-source-save environment stored) nil)
+              (credential-error () t))
+            "the environment source is read-only")
+           (setf (uiop:getenv variable) ""
+                 (oauth-test-memory-source-credentials primary) nil)
+           (cl-rfc8628/tests::check
+            (handler-case (progn (credential-manager-load manager) nil)
+              (credentials-unavailable (condition)
+                (and (search "API key is available" (credential-error-message condition))
+                     (equal (credentials-unavailable-searched-paths condition)
+                            (list #p"/tmp/stored-key.sexp")))))
+            "with neither key the manager reports where it searched"))
+      (setf (uiop:getenv variable) ""))))
+
 (defun run-manager-tests ()
   "Run the managed credential lifecycle tests."
+  (oauth-test--static-credentials)
   (oauth-test--single-flight-refresh)
   (oauth-test--leader-install-interruption)
   (oauth-test--publication-failure)

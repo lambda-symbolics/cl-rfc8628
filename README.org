@@ -100,6 +100,13 @@ changes unless called with =:allow-change t=. After a provider-specific
 reused-token error, call =CREDENTIAL-MANAGER-NEWER-ROTATION= with the
 attempted token to reread and validate a newly stored rotation.
 
+For static credentials such as API keys, use =STATIC-CREDENTIAL-MANAGER=. It
+never refreshes, describes its credential as an API key, and prefers its
+bootstrap source while that holds a value. =ENVIRONMENT-CREDENTIAL-SOURCE= is
+such a bootstrap source: it reads one environment variable into credentials
+under a pinned =:account-id=, reports an optional =:pathname=, and refuses
+saves.
+
 Failures signal =CREDENTIAL-ERROR=, =CREDENTIALS-UNAVAILABLE=, or
 =TOKEN-REFRESH-FAILED=. Hosts can select matching condition classes with
 =*CREDENTIAL-ERROR-CLASS*=, =*CREDENTIALS-UNAVAILABLE-CLASS*=, and

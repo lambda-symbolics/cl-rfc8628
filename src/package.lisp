@@ -30,6 +30,10 @@
    #:credential-manager-accept-account
    #:credential-manager-primary-source
    #:managed-credential-manager
+   #:static-credential-manager
+   #:environment-credential-source
+   #:environment-credential-source-environment-variable
+   #:environment-credential-source-account-id
    #:credential-manager-account-id
    #:credential-manager-bootstrap-source
    #:credential-manager-provider-label

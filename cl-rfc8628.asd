@@ -16,6 +16,7 @@
                              (:file "store")
                              (:file "client")
                              (:file "manager")
+                             (:file "static")
                              (:file "rfc8628"))))
   :in-order-to ((asdf:test-op (asdf:test-op #:cl-rfc8628/tests))))
 
