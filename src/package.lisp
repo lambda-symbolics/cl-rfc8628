@@ -46,6 +46,22 @@
    #:credential-manager-refresh
    #:credential-manager-credentials
    #:credential-manager-newer-rotation
+   #:credential-manager-validate-credentials
+   #:credential-manager-call-with-refresh-lock
+   ;; the RFC 6749 refresh grant
+   #:*refresh-form-content-type*
+   #:*refresh-json-content-type*
+   #:*refresh-redaction-marker*
+   #:refresh-grant-credential-manager
+   #:credential-manager-token-endpoint
+   #:credential-manager-client-id
+   #:credential-manager-refresh-parameters
+   #:credential-manager-refresh-headers
+   #:credential-manager-refresh-content-type
+   #:credential-manager-refresh-request
+   #:credential-manager-refreshed-account-ids
+   #:credential-manager-validate-refresh-response
+   #:credential-manager-refresh-response-credentials
    #:call-with-credentials
    #:with-credentials
    #:credential-error

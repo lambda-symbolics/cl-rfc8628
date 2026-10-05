@@ -166,6 +166,39 @@ value is true when the caller must publish them to the primary store, and
 false when a sibling process already published an equivalent rotation."))
 
 
+(defgeneric credential-manager-validate-credentials (manager credentials)
+  (:documentation
+   "Return stored CREDENTIALS once MANAGER accepts them for requests, or signal.
+
+The manager applies this to every primary-source credential it loads or adopts
+from a sibling's rotation, so provider claim requirements hold for both."))
+
+
+(defmethod credential-manager-validate-credentials
+    ((manager managed-credential-manager) (credentials oauth-credentials))
+  "Accept stored credentials without provider-specific claim checks."
+  (declare (ignore manager))
+  credentials)
+
+
+(defgeneric credential-manager-call-with-refresh-lock (manager function)
+  (:documentation
+   "Call FUNCTION while MANAGER holds the lock serializing its token rotation.
+
+A refresh leader rereads the primary source, exchanges the refresh token, and
+publishes the rotation inside this lock, so a manager whose refresh tokens are
+single-use supplies a lock shared by every process using the same store. The
+default serializes only this manager's threads, which its in-process refresh
+generation already does."))
+
+
+(defmethod credential-manager-call-with-refresh-lock
+    ((manager managed-credential-manager) (function function))
+  "Call FUNCTION without a cross-process lock."
+  (declare (ignore manager))
+  (funcall function))
+
+
 (defgeneric credential-manager--refresh-generation-installed (manager generation)
   (:documentation
    "Observe that MANAGER published GENERATION before its refresh exchange begins."))
@@ -236,7 +269,8 @@ false when a sibling process already published an equivalent rotation."))
          (primary (credential-source-load primary-source)))
     (cond
       (primary
-       (credential-manager-accept-account manager primary))
+       (credential-manager-accept-account
+        manager (credential-manager-validate-credentials manager primary)))
       (t
        (let ((bootstrap
                (and bootstrap-source
@@ -328,7 +362,9 @@ false when a sibling process already published an equivalent rotation."))
                                    latest stale-credentials))))
                       (credentials
                         (if latest-different-p
-                            (credential-manager-accept-account manager latest)
+                            (credential-manager-accept-account
+                             manager
+                             (credential-manager-validate-credentials manager latest))
                             stale-credentials))
                       (refresh-token
                         (oauth-credentials-refresh-token credentials)))
@@ -392,17 +428,35 @@ false when a sibling process already published an equivalent rotation."))
                   (credential-manager--refresh-generation-installed
                    manager generation)
                   (handler-case
-                      (multiple-value-bind (refreshed publish-p)
-                          (credential-manager-refresh-exchange
-                           manager credentials refresh-token)
-                        (return
-                          (complete-success generation refreshed publish-p)))
+                      (return
+                        (credential-manager-call-with-refresh-lock
+                         manager
+                         (lambda ()
+                           (multiple-value-bind (refreshed publish-p)
+                               (credential-manager--exchange-latest
+                                manager credentials refresh-token)
+                             (complete-success generation refreshed publish-p)))))
                     (error (condition)
                       (finish-generation
                        generation ':failure :failure condition)
                       (error condition))))))
           (when leader-generation
             (finish-generation leader-generation ':abandoned)))))))
+
+
+(defun credential-manager--exchange-latest (manager credentials refresh-token)
+  "Exchange REFRESH-TOKEN unless the primary source already holds a newer rotation.
+
+The refresh leader calls this under the refresh lock, so a rotation another
+process published while this one waited is adopted instead of spending its
+predecessor. Return the credentials and whether the caller must publish them."
+  (let ((latest (credential-source-load (credential-manager-primary-source manager))))
+    (if (and latest
+             (not (oauth-credentials-refresh-identity-equal-p latest credentials)))
+        (values (credential-manager-accept-account
+                 manager (credential-manager-validate-credentials manager latest))
+                nil)
+        (credential-manager-refresh-exchange manager credentials refresh-token))))
 
 
 (defun credential-manager-credentials (manager &key force-refresh)
@@ -432,7 +486,8 @@ false when a sibling process already published an equivalent rotation."))
                (non-empty-string-p (oauth-credentials-refresh-token latest))
                (not (string= (oauth-credentials-refresh-token latest)
                              attempted-refresh-token)))
-      (credential-manager-accept-account manager latest))))
+      (credential-manager-accept-account
+       manager (credential-manager-validate-credentials manager latest)))))
 
 
 (defun call-with-credentials (manager function &key force-refresh)

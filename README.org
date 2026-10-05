@@ -91,14 +91,52 @@ and invoke a callback inside =*SECRET-REGION-FUNCTION*=. Acquisition rereads
 the primary source, imports only a valid bootstrap access token when the
 primary source is absent, and refreshes expiring credentials. Concurrent
 refresh callers share one exchange and one immutable success or failure.
-An abandoned leader releases waiters to retry. Coordination is local to
-one manager in one SBCL process; source implementations own cross-process
-serialization. Managers retain paths and account identity, not tokens.
+An abandoned leader releases waiters to retry. Managers retain paths and
+account identity, not tokens.
 
-=CREDENTIAL-MANAGER-ACCEPT-ACCOUNT= pins the first account and rejects
-changes unless called with =:allow-change t=. After a provider-specific
-reused-token error, call =CREDENTIAL-MANAGER-NEWER-ROTATION= with the
-attempted token to reread and validate a newly stored rotation.
+The refresh leader rereads the primary source, exchanges the refresh token,
+and publishes the rotation inside =CREDENTIAL-MANAGER-CALL-WITH-REFRESH-LOCK=,
+adopting instead any rotation another process published while it waited. The
+default lock covers only one manager in one SBCL process. A manager whose
+refresh tokens are single-use specializes it with a lock shared by every
+process using the same store.
+
+=CREDENTIAL-MANAGER-VALIDATE-CREDENTIALS= checks provider claims on every
+primary-source credential the manager loads or adopts, and signals when they
+cannot serve requests. =CREDENTIAL-MANAGER-ACCEPT-ACCOUNT= pins the first
+account and rejects changes unless called with =:allow-change t=.
+=CREDENTIAL-MANAGER-NEWER-ROTATION= rereads and validates a stored rotation
+replacing an attempted refresh token.
+
+* The refresh grant
+
+=REFRESH-GRANT-CREDENTIAL-MANAGER= implements
+=CREDENTIAL-MANAGER-REFRESH-EXCHANGE= with the RFC 6749 refresh grant.
+Subclasses define =CREDENTIAL-MANAGER-TOKEN-ENDPOINT= and
+=CREDENTIAL-MANAGER-CLIENT-ID=, and may specialize:
+
+- =CREDENTIAL-MANAGER-REFRESH-PARAMETERS= for the request parameters, by
+  default the grant type, refresh token, and client identifier.
+- =CREDENTIAL-MANAGER-REFRESH-HEADERS= for headers beyond the content type,
+  =Accept=, and =User-Agent=.
+- =CREDENTIAL-MANAGER-REFRESH-CONTENT-TYPE=, either
+  =*REFRESH-FORM-CONTENT-TYPE*= (the default) or
+  =*REFRESH-JSON-CONTENT-TYPE*=.
+- =CREDENTIAL-MANAGER-REFRESH-REQUEST= for the transport, which returns the
+  body, HTTP status, and headers, by default through
+  =DEVICE-AUTHENTICATION-REQUEST=. Hosts add their deadlines here.
+- =CREDENTIAL-MANAGER-REFRESHED-ACCOUNT-IDS= for the account identities the
+  returned tokens claim, by default their JWT subjects. Each must match the
+  pinned account.
+- =CREDENTIAL-MANAGER-VALIDATE-REFRESH-RESPONSE= for provider requirements on
+  the token document, such as a rotation or a scope.
+
+A response without a refresh or OpenID token keeps the previous one, and the
+expiry comes from =expires_in= or the access token's =exp= claim.
+=CREDENTIAL-MANAGER-REFRESH-RESPONSE-CREDENTIALS= performs this validation
+for a response body obtained elsewhere. A rejected exchange adopts a rotation
+another process already stored, and otherwise signals a refresh failure with
+the status and an OAuth error code redacted of every credential value.
 
 For static credentials such as API keys, use =STATIC-CREDENTIAL-MANAGER=. It
 never refreshes, describes its credential as an API key, and prefers its

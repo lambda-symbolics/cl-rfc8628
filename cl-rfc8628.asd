@@ -16,6 +16,7 @@
                              (:file "store")
                              (:file "client")
                              (:file "manager")
+                             (:file "refresh")
                              (:file "static")
                              (:file "rfc8628"))))
   :in-order-to ((asdf:test-op (asdf:test-op #:cl-rfc8628/tests))))
@@ -27,7 +28,8 @@
   :components ((:module "tests"
                 :serial t
                 :components ((:file "tests")
-                             (:file "manager"))))
+                             (:file "manager")
+                             (:file "refresh"))))
   :perform (asdf:test-op (operation component)
              (declare (ignore operation component))
              (uiop:symbol-call '#:cl-rfc8628/tests '#:run-tests)))
