@@ -1,4 +1,5 @@
 (defpackage #:cl-rfc8628
+  (:documentation "The OAuth 2.0 device authorization grant, credential managers, and the refresh grant.")
   (:nicknames #:rfc8628)
   (:use #:cl)
   (:import-from #:bordeaux-threads
