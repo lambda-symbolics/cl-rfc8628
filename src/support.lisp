@@ -33,7 +33,7 @@
 (defun json-object (&rest properties)
   "Return a JSON object holding alternating key and value PROPERTIES."
   (let ((object (make-hash-table :test #'equal)))
-    (loop for (key value) on properties by #'cddr
+    (loop for (key value) on properties by (lambda (tail) (nthcdr 2 tail))
           do (setf (gethash key object) value))
     object))
 
