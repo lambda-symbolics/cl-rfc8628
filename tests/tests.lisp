@@ -9,7 +9,6 @@
   (unless value
     (error (apply #'format nil control arguments))))
 
-
 ;;;; -- Test Store --
 
 (defvar *saved-credentials* nil
@@ -113,15 +112,15 @@
   "Return a test RFC 8628 client that uses the given transport and host functions."
   (make-instance
    'rfc8628-device-authentication-client
-   :issuer "https://issuer.test"
-   :client-id "test-client"
+   :issuer           "https://issuer.test"
+   :client-id        "test-client"
    :device-code-path "/oauth2/device/code"
-   :token-path "/oauth2/token"
-   :scope "openid offline_access"
+   :token-path       "/oauth2/token"
+   :scope            "openid offline_access"
    :request-function request-function
-   :poll-function #'rfc8628-device-authentication-poll-for-tokens
-   :sleep-function sleep-function
-   :clock-function clock-function
+   :poll-function    #'rfc8628-device-authentication-poll-for-tokens
+   :sleep-function   sleep-function
+   :clock-function   clock-function
    :browser-function browser-function))
 
 (defun expect-failure (thunk stage &key status code)
@@ -146,11 +145,11 @@
 
 (defun test-complete-flow ()
   "Exercise request, pending and slow_down polls, and secure publication."
-  (let ((requests nil)
-        (poll-count 0)
-        (clock 0)
-        (sleeps nil)
-        (opened-url nil)
+  (let ((requests            nil)
+        (poll-count          0)
+        (clock               0)
+        (sleeps              nil)
+        (opened-url          nil)
         (*saved-credentials* nil))
     (flet ((request (&key method url headers content)
              (push (list :method method :url url
@@ -162,12 +161,15 @@
                ((url-suffix-p url "/oauth2/token")
                 (incf poll-count)
                 (case poll-count
-                  (1 (values (json-encode
-                              (json-object "error" "authorization_pending"))
-                             400 nil))
-                  (2 (values (json-encode (json-object "error" "slow_down"))
-                             400 nil))
-                  (t (values (token-response) 200 nil))))
+                  (1
+                   (values (json-encode
+                            (json-object "error" "authorization_pending"))
+                           400 nil))
+                  (2
+                   (values (json-encode (json-object "error" "slow_down"))
+                           400 nil))
+                  (t
+                   (values (token-response) 200 nil))))
                (t
                 (error "Unexpected test URL."))))
            (pause (seconds)
@@ -175,8 +177,8 @@
              (incf clock seconds)))
       (let* ((client (client-create
                       :request-function #'request
-                      :sleep-function #'pause
-                      :clock-function (lambda () clock)
+                      :sleep-function   #'pause
+                      :clock-function   (lambda () clock)
                       :browser-function (lambda (url)
                                           (setf opened-url url)
                                           t)))
@@ -234,19 +236,21 @@
              (let ((clock 0))
                (client-create
                 :request-function responder
-                :sleep-function (lambda (seconds) (incf clock seconds))
-                :clock-function (lambda () clock))))
+                :sleep-function   (lambda (seconds) (incf clock seconds))
+                :clock-function   (lambda () clock))))
+
            (poll-responder (body status)
              (lambda (&key method url headers content)
                (declare (ignore method headers content))
                (if (url-suffix-p url "/oauth2/device/code")
                    (values (request-code-response) 200 nil)
                    (values body status nil))))
+
            (login (responder)
              (device-authentication-login
               (client-for responder)
               (test-manager)
-              :stream (make-string-output-stream)
+              :stream         (make-string-output-stream)
               :open-browser-p nil)))
     (expect-failure
      (lambda ()

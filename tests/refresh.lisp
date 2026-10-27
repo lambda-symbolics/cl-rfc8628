@@ -4,13 +4,13 @@
 
 (defclass refresh-test-source (credential-source)
   ((credentials
-    :initarg :credentials
-    :initform nil
-    :accessor refresh-test-source-credentials
+    :initarg       :credentials
+    :initform      nil
+    :accessor      refresh-test-source-credentials
     :documentation "The credentials currently published to this in-memory store.")
    (saves
-    :initform 0
-    :accessor refresh-test-source-saves
+    :initform      0
+    :accessor      refresh-test-source-saves
     :documentation "The number of publications to this store."))
   (:documentation "An in-memory primary source for refresh grant tests."))
 
@@ -33,31 +33,31 @@
 
 (defclass refresh-test-manager (refresh-grant-credential-manager)
   ((responses
-    :initarg :responses
-    :initform nil
-    :accessor refresh-test-manager-responses
+    :initarg       :responses
+    :initform      nil
+    :accessor      refresh-test-manager-responses
     :documentation "Queued (body status) replies or conditions, one per request.")
    (requests
-    :initform nil
-    :accessor refresh-test-manager-requests
+    :initform      nil
+    :accessor      refresh-test-manager-requests
     :documentation "The recorded requests, newest first, as property lists.")
    (content-type
-    :initarg :content-type
-    :initform *refresh-form-content-type*
-    :reader refresh-test-manager-content-type
+    :initarg       :content-type
+    :initform      *refresh-form-content-type*
+    :reader        refresh-test-manager-content-type
     :documentation "The request encoding this manager declares.")
    (lock-entries
-    :initform 0
-    :accessor refresh-test-manager-lock-entries
+    :initform      0
+    :accessor      refresh-test-manager-lock-entries
     :documentation "The number of times the refresh lock was taken.")
    (lock-action
-    :initarg :lock-action
-    :initform nil
-    :reader refresh-test-manager-lock-action
+    :initarg       :lock-action
+    :initform      nil
+    :reader        refresh-test-manager-lock-action
     :documentation "An optional function run on acquiring the lock, before its body.")
    (locked-p
-    :initform nil
-    :accessor refresh-test-manager-locked-p
+    :initform      nil
+    :accessor      refresh-test-manager-locked-p
     :documentation "Whether the refresh lock is currently held."))
   (:documentation "A refresh grant manager with a scripted transport and observable lock."))
 
@@ -120,7 +120,7 @@
   "Signal unavailable credentials when the access token is the unusable test token."
   (when (string= (oauth-credentials-access-token credentials) "unusable-access")
     (error *credentials-unavailable-class*
-           :message "The stored portal credentials are unusable."
+           :message        "The stored portal credentials are unusable."
            :searched-paths nil))
   credentials)
 
@@ -138,7 +138,7 @@
   (make-instance class
                  :primary-source (make-instance 'refresh-test-source :credentials stored)
                  :responses responses :content-type content-type
-                 :lock-action lock-action))
+                 :lock-action    lock-action))
 
 (defun refresh-test--body (&rest properties)
   "Return a JSON body holding PROPERTIES."
@@ -159,8 +159,8 @@
 
 (defun refresh-test--request-shape ()
   "Test the RFC 6749 request parameters, headers, and both encodings."
-  (let* ((manager (refresh-test--manager
-                   :responses (list (list (refresh-test--body "access_token" "new-access") 200))))
+  (let* ((manager     (refresh-test--manager
+                       :responses (list (list (refresh-test--body "access_token" "new-access") 200))))
          (credentials (refresh-test--credentials)))
     (credential-manager-refresh-exchange manager credentials "old-refresh")
     (let* ((request (first (refresh-test-manager-requests manager)))
@@ -176,7 +176,7 @@
              "a refresh form-encodes the grant and declares its media types")))
   (let ((manager (refresh-test--manager
                   :content-type *refresh-json-content-type*
-                  :responses (list (list (refresh-test--body "access_token" "new-access") 200)))))
+                  :responses    (list (list (refresh-test--body "access_token" "new-access") 200)))))
     (credential-manager-refresh-exchange manager (refresh-test--credentials) "old-refresh")
     (let ((document (json-decode (getf (first (refresh-test-manager-requests manager)) :content))))
       (check (and (string= (json-get document "grant_type") "refresh_token")
@@ -186,7 +186,7 @@
 
 (defun refresh-test--responses ()
   "Test rotation, carried-over tokens, expiry, accounts, and malformed responses."
-  (let* ((manager (refresh-test--manager))
+  (let* ((manager  (refresh-test--manager))
          (previous (refresh-test--credentials :id-token "old-id")))
     (let ((rotated (credential-manager-refresh-response-credentials
                     manager previous
@@ -229,13 +229,13 @@
 (defun refresh-test--rejections ()
   "Test rejected, failed, and invalid exchanges."
   (let* ((credentials (refresh-test--credentials :refresh-token "echoed-refresh"))
-         (manager (refresh-test--manager
-                   :stored credentials
-                   :responses (list (list (refresh-test--body "error" "bad:echoed-refresh") 400))))
-         (condition (refresh-test--failure
-                     (lambda () (credential-manager-refresh-exchange manager credentials
-                                                                     "echoed-refresh"))))
-         (text (and condition (princ-to-string condition))))
+         (manager     (refresh-test--manager
+                       :stored    credentials
+                       :responses (list (list (refresh-test--body "error" "bad:echoed-refresh") 400))))
+         (condition   (refresh-test--failure
+                       (lambda () (credential-manager-refresh-exchange manager credentials
+                                                                       "echoed-refresh"))))
+         (text        (and condition (princ-to-string condition))))
     (check (and condition
                 (= (token-refresh-failed-status condition) 400)
                 (not (search "echoed-refresh" text))
@@ -245,16 +245,16 @@
                 (search "log in to the portal" text))
            "a rejection reports the redacted code, its status, and the login hint"))
   (let* ((credentials (refresh-test--credentials))
-         (sibling (refresh-test--credentials :access-token "sibling-access"
-                                             :refresh-token "sibling-refresh"))
-         (manager (refresh-test--manager
-                   :stored sibling
-                   :responses (list (list (refresh-test--body "error" "refresh_token_reused") 400)))))
+         (sibling     (refresh-test--credentials :access-token  "sibling-access"
+                                                 :refresh-token "sibling-refresh"))
+         (manager     (refresh-test--manager
+                       :stored    sibling
+                       :responses (list (list (refresh-test--body "error" "refresh_token_reused") 400)))))
     (multiple-value-bind (adopted publish-p)
         (credential-manager-refresh-exchange manager credentials "old-refresh")
       (check (and (eq adopted sibling) (not publish-p))
              "a rejected token yields a sibling's published rotation unpublished")))
-  (dolist (case (list (list (make-condition 'simple-error :format-control "socket"
+  (dolist (case (list (list (make-condition 'simple-error :format-control   "socket"
                                                           :format-arguments nil)
                             "could not be completed")
                       (list (list nil 200) "invalid response")
@@ -278,13 +278,13 @@
 
 (defun refresh-test--locked-rotation ()
   "Test the refresh lock spans the reread, exchange, and publication."
-  (let* ((stale (refresh-test--credentials :expires-at 0))
-         (manager (refresh-test--manager
-                   :stored stale
-                   :responses (list (list (refresh-test--body "access_token" "new-access"
-                                                              "refresh_token" "new-refresh")
-                                          200))))
-         (source (credential-manager-primary-source manager))
+  (let* ((stale     (refresh-test--credentials :expires-at 0))
+         (manager   (refresh-test--manager
+                     :stored    stale
+                     :responses (list (list (refresh-test--body "access_token" "new-access"
+                                                                "refresh_token" "new-refresh")
+                                            200))))
+         (source    (credential-manager-primary-source manager))
          (refreshed (credential-manager-refresh manager stale)))
     (check (and (string= (oauth-credentials-refresh-token refreshed) "new-refresh")
                 (= (refresh-test-manager-lock-entries manager) 1)
@@ -292,13 +292,13 @@
                 (eq (refresh-test-source-credentials source) refreshed)
                 (= (refresh-test-source-saves source) 1))
            "the leader exchanges and publishes while holding the refresh lock"))
-  (let* ((stale (refresh-test--credentials :expires-at 0))
-         (rotation (refresh-test--credentials :access-token "sibling-access"
+  (let* ((stale    (refresh-test--credentials :expires-at 0))
+         (rotation (refresh-test--credentials :access-token  "sibling-access"
                                               :refresh-token "sibling-refresh"
-                                              :expires-at (+ (get-universal-time) 3600)))
-         (manager nil))
+                                              :expires-at    (+ (get-universal-time) 3600)))
+         (manager  nil))
     (setf manager (refresh-test--manager
-                   :stored stale
+                   :stored      stale
                    :lock-action (lambda ()
                                   (setf (refresh-test-source-credentials
                                          (credential-manager-primary-source manager))
@@ -307,22 +307,22 @@
                 (null (refresh-test-manager-requests manager))
                 (zerop (refresh-test-source-saves (credential-manager-primary-source manager))))
            "a rotation published while waiting for the lock is adopted unspent"))
-  (let* ((stale (refresh-test--credentials :expires-at 0))
+  (let* ((stale   (refresh-test--credentials :expires-at 0))
          (manager nil))
     (setf manager (refresh-test--manager
-                   :class 'refresh-test-rotating-manager
-                   :stored stale
+                   :class       'refresh-test-rotating-manager
+                   :stored      stale
                    :lock-action (lambda ()
                                   (setf (refresh-test-source-credentials
                                          (credential-manager-primary-source manager))
                                         (refresh-test--credentials
-                                         :access-token "unusable-access"
+                                         :access-token  "unusable-access"
                                          :refresh-token "sibling-refresh")))))
     (check (handler-case (progn (credential-manager-refresh manager stale) nil)
              (credentials-unavailable () t))
            "an adopted rotation passes the manager's credential validation"))
   (let ((manager (refresh-test--manager
-                  :class 'refresh-test-rotating-manager
+                  :class  'refresh-test-rotating-manager
                   :stored (refresh-test--credentials :access-token "unusable-access"))))
     (check (handler-case (progn (credential-manager-load manager) nil)
              (credentials-unavailable () t))

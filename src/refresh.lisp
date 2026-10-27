@@ -23,19 +23,15 @@ Subclasses name their token endpoint and client, and may adjust the request
 parameters, headers, encoding, transport, returned account claims, and
 response validation through the generic functions below."))
 
-
 (defgeneric credential-manager-token-endpoint (manager)
   (:documentation "Return the token endpoint URL receiving MANAGER's refresh grants."))
-
 
 (defgeneric credential-manager-client-id (manager)
   (:documentation "Return the public OAuth client identifier MANAGER refreshes as."))
 
-
 (defgeneric credential-manager-refresh-parameters (manager refresh-token)
   (:documentation
    "Return the alist of request parameters spending REFRESH-TOKEN at MANAGER's endpoint."))
-
 
 (defmethod credential-manager-refresh-parameters
     ((manager refresh-grant-credential-manager) (refresh-token string))
@@ -44,12 +40,10 @@ response validation through the generic functions below."))
         (cons "refresh_token" refresh-token)
         (cons "client_id" (credential-manager-client-id manager))))
 
-
 (defgeneric credential-manager-refresh-headers (manager refresh-token)
   (:documentation
    "Return extra request headers for spending REFRESH-TOKEN beyond the content type,
 Accept, and User-Agent headers every refresh request carries."))
-
 
 (defmethod credential-manager-refresh-headers
     ((manager refresh-grant-credential-manager) (refresh-token string))
@@ -57,18 +51,15 @@ Accept, and User-Agent headers every refresh request carries."))
   (declare (ignore manager refresh-token))
   nil)
 
-
 (defgeneric credential-manager-refresh-content-type (manager)
   (:documentation
    "Return *REFRESH-FORM-CONTENT-TYPE* or *REFRESH-JSON-CONTENT-TYPE* for MANAGER's requests."))
-
 
 (defmethod credential-manager-refresh-content-type
     ((manager refresh-grant-credential-manager))
   "Form-encode refresh requests as RFC 6749 specifies."
   (declare (ignore manager))
   *refresh-form-content-type*)
-
 
 (defgeneric credential-manager-refresh-request (manager &key url headers content)
   (:documentation
@@ -77,7 +68,6 @@ Accept, and User-Agent headers every refresh request carries."))
 An HTTP error status is returned rather than signaled. Hosts specialize this to
 add their own deadline or transport."))
 
-
 (defmethod credential-manager-refresh-request
     ((manager refresh-grant-credential-manager) &key url headers content)
   "POST through the shared device-flow transport."
@@ -85,13 +75,11 @@ add their own deadline or transport."))
   (device-authentication-request :method ':post :url url :headers headers
                                  :content content))
 
-
 (defgeneric credential-manager-refreshed-account-ids (manager document)
   (:documentation
    "Return the account identities claimed by the tokens in refresh DOCUMENT.
 
 Each one must match the manager's account, and an empty list keeps it."))
-
 
 (defmethod credential-manager-refreshed-account-ids
     ((manager refresh-grant-credential-manager) document)
@@ -103,20 +91,17 @@ Each one must match the manager's account, and an empty list keeps it."))
         when subject
           collect subject))
 
-
 (defgeneric credential-manager-validate-refresh-response (manager document credentials)
   (:documentation
    "Signal *TOKEN-REFRESH-FAILED-CLASS* unless refresh DOCUMENT satisfies MANAGER.
 
 CREDENTIALS are the ones being refreshed. The return value is ignored."))
 
-
 (defmethod credential-manager-validate-refresh-response
     ((manager refresh-grant-credential-manager) document (credentials oauth-credentials))
   "Require nothing beyond the RFC 6749 access token."
   (declare (ignore manager document credentials))
   nil)
-
 
 (defmethod credential-manager-refresh-exchange
     ((manager refresh-grant-credential-manager)
@@ -126,12 +111,12 @@ CREDENTIALS are the ones being refreshed. The return value is ignored."))
 
 When the endpoint rejects the token and the primary source already holds a newer
 rotation, that rotation is returned unpublished instead of signaling."
-  (let* ((parameters (credential-manager-refresh-parameters manager refresh-token))
+  (let* ((parameters   (credential-manager-refresh-parameters manager refresh-token))
          (content-type (credential-manager-refresh-content-type manager)))
     (multiple-value-bind (body status)
         (refresh-grant--request
          manager
-         :url (credential-manager-token-endpoint manager)
+         :url     (credential-manager-token-endpoint manager)
          :headers (append (list (cons "Content-Type" content-type)
                                 (cons "Accept" "application/json")
                                 (cons "User-Agent" (device-authentication-user-agent)))
@@ -140,20 +125,19 @@ rotation, that rotation is returned unpublished instead of signaling."
       (if (device-authentication-success-status-p status)
           (values (credential-manager-refresh-response-credentials manager credentials body)
                   t)
-          (let ((code (refresh-grant--redacted-error-code
-                       body (cons refresh-token
-                                  (oauth-credentials-secret-values credentials))))
+          (let ((code  (refresh-grant--redacted-error-code
+                        body (cons refresh-token
+                                   (oauth-credentials-secret-values credentials))))
                 (newer (credential-manager-newer-rotation manager refresh-token)))
             (if newer
                 (values newer nil)
                 (error *token-refresh-failed-class*
-                       :message (format nil "~A OAuth token refresh failed~@[ (~A)~]; ~A."
-                                        (credential-manager-provider-label manager)
-                                        code
-                                        (credential-manager-login-hint manager))
-                       :status status
+                       :message  (format nil "~A OAuth token refresh failed~@[ (~A)~]; ~A."
+                                         (credential-manager-provider-label manager)
+                                         code
+                                         (credential-manager-login-hint manager))
+                       :status   status
                        :response code)))))))
-
 
 (defun credential-manager-refresh-response-credentials (manager credentials body)
   "Validate refresh response BODY and return credentials continuing CREDENTIALS.
@@ -169,12 +153,12 @@ or claims a different account."
       (let ((document (handler-case (json-decode body) (error () nil))))
         (unless (json-object-p document)
           (fail "The ~A OAuth refresh response was malformed."))
-        (let ((access-token (json-get document "access_token"))
-              (id-token (json-get document "id_token"))
+        (let ((access-token  (json-get document "access_token"))
+              (id-token      (json-get document "id_token"))
               (refresh-token (or (json-get document "refresh_token")
                                  (oauth-credentials-refresh-token credentials)))
-              (expires-in (json-get document "expires_in"))
-              (account-id (oauth-credentials-account-id credentials)))
+              (expires-in    (json-get document "expires_in"))
+              (account-id    (oauth-credentials-account-id credentials)))
           (unless (and (non-empty-string-p access-token)
                        (non-empty-string-p refresh-token)
                        (or (null id-token) (non-empty-string-p id-token)))
@@ -184,16 +168,15 @@ or claims a different account."
                          (credential-manager-refreshed-account-ids manager document))
             (fail "The ~A OAuth refresh response changed accounts."))
           (make-instance 'oauth-credentials
-                         :access-token access-token
+                         :access-token  access-token
                          :refresh-token refresh-token
-                         :id-token (or id-token (oauth-credentials-id-token credentials))
-                         :account-id account-id
-                         :expires-at (if (and (integerp expires-in) (plusp expires-in))
-                                         (+ (get-universal-time) expires-in)
-                                         (jwt-expiration access-token))
-                         :source-path (credential-source-pathname
-                                       (credential-manager-primary-source manager))))))))
-
+                         :id-token      (or id-token (oauth-credentials-id-token credentials))
+                         :account-id    account-id
+                         :expires-at    (if (and (integerp expires-in) (plusp expires-in))
+                                            (+ (get-universal-time) expires-in)
+                                            (jwt-expiration access-token))
+                         :source-path   (credential-source-pathname
+                                         (credential-manager-primary-source manager))))))))
 
 (defun refresh-grant--request (manager &key url headers content)
   "Invoke MANAGER's refresh transport, returning only a string body and integer status.
@@ -216,7 +199,6 @@ Host credential conditions propagate, and any other failure becomes a refresh fa
         (fail "The ~A OAuth refresh transport returned an invalid response."))
       (values body status))))
 
-
 (defun refresh-grant--encode (content-type parameters)
   "Encode PARAMETERS as CONTENT-TYPE's request body."
   (if (string= content-type *refresh-json-content-type*)
@@ -226,10 +208,9 @@ Host credential conditions propagate, and any other failure becomes a refresh fa
                      object))
       (quri:url-encode-params parameters)))
 
-
 (defun refresh-grant--redacted-error-code (body secrets)
   "Return BODY's bounded OAuth error code with every exact secret in SECRETS removed."
-  (let ((code (oauth-error-code body))
+  (let ((code    (oauth-error-code body))
         (secrets (stable-sort (remove-duplicates (remove-if-not #'non-empty-string-p secrets)
                                                  :test #'string=)
                               #'> :key #'length)))

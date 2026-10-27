@@ -7,38 +7,38 @@
 
 (defclass rfc8628-device-authentication-client (device-authentication-client)
   ((device-code-path
-    :initarg :device-code-path
-    :reader rfc8628-device-authentication-client-device-code-path
-    :type non-empty-string
+    :initarg       :device-code-path
+    :reader        rfc8628-device-authentication-client-device-code-path
+    :type          non-empty-string
     :documentation "The issuer-relative RFC 8628 device authorization path.")
    (token-path
-    :initarg :token-path
-    :reader rfc8628-device-authentication-client-token-path
-    :type non-empty-string
+    :initarg       :token-path
+    :reader        rfc8628-device-authentication-client-token-path
+    :type          non-empty-string
     :documentation "The issuer-relative OAuth token path.")
    (scope
-    :initarg :scope
-    :reader rfc8628-device-authentication-client-scope
-    :type non-empty-string
+    :initarg       :scope
+    :reader        rfc8628-device-authentication-client-scope
+    :type          non-empty-string
     :documentation "The space-delimited OAuth scopes requested by this client.")
    (request-code-parameters
-    :initarg :request-code-parameters
-    :initform nil
-    :reader rfc8628-device-authentication-client-request-code-parameters
-    :type list
+    :initarg       :request-code-parameters
+    :initform      nil
+    :reader        rfc8628-device-authentication-client-request-code-parameters
+    :type          list
     :documentation "Additional non-secret form parameters for device authorization."))
   (:documentation "A configurable RFC 8628 OAuth device authorization client."))
 
 (defclass rfc8628-device-authorization (device-authorization)
   ((issued-at
-    :initarg :issued-at
-    :reader rfc8628-device-authorization-issued-at
-    :type real
+    :initarg       :issued-at
+    :reader        rfc8628-device-authorization-issued-at
+    :type          real
     :documentation "The monotonic time at which the device code was issued.")
    (expires-in
-    :initarg :expires-in
-    :reader rfc8628-device-authorization-expires-in
-    :type (integer 1)
+    :initarg       :expires-in
+    :reader        rfc8628-device-authorization-expires-in
+    :type          (integer 1)
     :documentation "The server-reported device code lifetime in seconds."))
   (:documentation "One pending RFC 8628 device authorization and its lifetime."))
 
@@ -71,7 +71,7 @@
     ((client rfc8628-device-authentication-client) (document hash-table))
   "Resolve the account from the OpenID or access token subject claim."
   (declare (ignore client))
-  (let ((id-token (json-get document "id_token"))
+  (let ((id-token     (json-get document "id_token"))
         (access-token (json-get document "access_token")))
     (or (and (stringp id-token) (jwt-subject id-token))
         (and (stringp access-token) (jwt-subject access-token)))))
@@ -108,7 +108,7 @@
   (handler-case
       (let* ((parsed (quri:uri url))
              (scheme (quri:uri-scheme parsed))
-             (host (quri:uri-host parsed)))
+             (host   (quri:uri-host parsed)))
         (if (and (non-empty-string-p host)
                  (null (quri:uri-userinfo parsed))
                  (or (string-equal scheme "https")
@@ -137,7 +137,7 @@
    (lambda ()
      (let* ((document
               (device-authentication-json-request
-               :client client
+               :client       client
                :url
                (device-authentication-issuer-url
                 client
@@ -146,14 +146,14 @@
                :content
                (quri:url-encode-params
                 (rfc8628-device-authentication--request-code-parameters client))
-               :stage ':request-code))
-            (device-code (json-get document "device_code"))
-            (user-code (json-get document "user_code"))
+               :stage        ':request-code))
+            (device-code      (json-get document "device_code"))
+            (user-code        (json-get document "user_code"))
             (verification-uri (json-get document "verification_uri"))
             (verification-uri-complete
               (json-get document "verification_uri_complete"))
-            (expires-in (json-get document "expires_in"))
-            (interval (json-get document "interval")))
+            (expires-in       (json-get document "expires_in"))
+            (interval         (json-get document "interval")))
        (unless (and (non-empty-string-p device-code)
                     (non-empty-string-p user-code)
                     (rfc8628-device-authentication--valid-user-code-p user-code)
@@ -161,7 +161,7 @@
                     (integerp expires-in)
                     (plusp expires-in))
          (device-authentication-fail
-          :stage ':request-code
+          :stage   ':request-code
           :message "The device authorization response omitted required fields."))
        (let ((verification-url
                (if (non-empty-string-p verification-uri-complete)
@@ -170,25 +170,25 @@
          (unless (rfc8628-device-authentication--safe-verification-url-p
                   verification-url)
            (device-authentication-fail
-            :stage ':request-code
+            :stage   ':request-code
             :message "The device authorization verification URL is not acceptable."))
          (make-instance
           (rfc8628-device-authentication-authorization-class client)
-          :verification-url verification-url
-          :user-code user-code
+          :verification-url        verification-url
+          :user-code               user-code
           :device-authorization-id device-code
           :poll-interval
           (device-authentication-poll-interval (or interval 5))
           :issued-at
           (funcall (device-authentication-client-clock-function client))
-          :expires-in expires-in))))))
+          :expires-in              expires-in))))))
 
 
 ;;;; -- Poll and Completion --
 
 (defun rfc8628-device-authentication-poll-for-tokens (client authorization)
   "Poll CLIENT's token endpoint until AUTHORIZATION succeeds, fails, or expires."
-  (let* ((clock (device-authentication-client-clock-function client))
+  (let* ((clock    (device-authentication-client-clock-function client))
          (deadline
            (+ (rfc8628-device-authorization-issued-at authorization)
               (min (device-authentication-client-poll-timeout client)
@@ -211,24 +211,24 @@
       (let ((now (funcall clock)))
         (when (>= now deadline)
           (device-authentication-fail
-           :stage ':poll
+           :stage   ':poll
            :message "Device authentication timed out before approval."))
         (funcall (device-authentication-client-sleep-function client)
                  (min interval (- deadline now)))
         (when (>= (funcall clock) deadline)
           (device-authentication-fail
-           :stage ':poll
+           :stage   ':poll
            :message "Device authentication timed out before approval.")))
       (multiple-value-bind (body status response-headers)
           (device-authentication-invoke-request
-           :client client
-           :url url
+           :client  client
+           :url     url
            :headers
            (list (cons "Content-Type" "application/x-www-form-urlencoded")
                  (cons "Accept" "application/json")
                  (cons "User-Agent" (device-authentication-user-agent)))
            :content content
-           :stage ':poll)
+           :stage   ':poll)
         (declare (ignore response-headers))
         (if (device-authentication-success-status-p status)
             (let ((document
@@ -256,54 +256,54 @@
                  (incf interval *rfc8628-device-slow-down-increment*))
                 ((equal code "access_denied")
                  (device-authentication-fail
-                  :stage ':poll
+                  :stage   ':poll
                   :message "The authorization request was denied."
-                  :status status
-                  :code code))
+                  :status  status
+                  :code    code))
                 ((equal code "expired_token")
                  (device-authentication-fail
-                  :stage ':poll
+                  :stage   ':poll
                   :message "The device code expired before approval."
-                  :status status
-                  :code code))
+                  :status  status
+                  :code    code))
                 (t
                  (device-authentication-fail
-                  :stage ':poll
+                  :stage  ':poll
                   :message
                   (format nil
                           "Device authorization was not completed~@[ (~A)~]."
                           code)
                   :status status
-                  :code code)))))))))
+                  :code   code)))))))))
 
 (defun rfc8628-device-authentication--credentials
     (client document source-path)
   "Return renewable OAuth credentials carried by token DOCUMENT for SOURCE-PATH."
   (rfc8628-device-authentication-validate-token-response client document)
-  (let* ((access-token (json-get document "access_token"))
+  (let* ((access-token  (json-get document "access_token"))
          (refresh-token (json-get document "refresh_token"))
-         (id-token (json-get document "id_token"))
-         (expires-in (json-get document "expires_in"))
+         (id-token      (json-get document "id_token"))
+         (expires-in    (json-get document "expires_in"))
          (account-id
            (rfc8628-device-authentication-account-id client document)))
     (unless (and (non-empty-string-p access-token)
                  (non-empty-string-p refresh-token)
                  (non-empty-string-p account-id))
       (device-authentication-fail
-       :stage ':credentials
+       :stage   ':credentials
        :message "The device token response omitted required credential fields."))
     (make-instance
      'oauth-credentials
-     :access-token access-token
+     :access-token  access-token
      :refresh-token refresh-token
-     :id-token (and (non-empty-string-p id-token) id-token)
-     :account-id account-id
+     :id-token      (and (non-empty-string-p id-token) id-token)
+     :account-id    account-id
      :expires-at
      (or (and (integerp expires-in)
               (plusp expires-in)
               (+ (get-universal-time) expires-in))
          (jwt-expiration access-token))
-     :source-path source-path)))
+     :source-path   source-path)))
 
 (defmethod device-authentication-complete
     ((client rfc8628-device-authentication-client)
@@ -321,7 +321,7 @@
             (primary-source (credential-manager-primary-source manager)))
        (unless (json-object-p document)
          (device-authentication-fail
-          :stage ':poll
+          :stage   ':poll
           :message "The device authorization poll returned an invalid result."))
        (rfc8628-device-authentication-publish-credentials
         client

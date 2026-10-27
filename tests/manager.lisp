@@ -1,24 +1,21 @@
 (in-package #:cl-rfc8628)
 
-
 (defclass oauth-test-memory-credential-source (cl-rfc8628/tests::test-credential-source)
   ((credentials
-    :initarg :credentials
-    :accessor oauth-test-memory-source-credentials
-    :type oauth-credentials
+    :initarg       :credentials
+    :accessor      oauth-test-memory-source-credentials
+    :type          oauth-credentials
     :documentation "The in-memory credentials returned by this test source.")
    (save-count
-    :initform 0
-    :accessor oauth-test-memory-source-save-count
-    :type (integer 0)
+    :initform      0
+    :accessor      oauth-test-memory-source-save-count
+    :type          (integer 0)
     :documentation "The number of credentials published to this test source."))
   (:documentation "An in-memory credential source for refresh concurrency tests."))
-
 
 (defmethod credential-source-load ((source oauth-test-memory-credential-source))
   "Return SOURCE's current in-memory credentials."
   (oauth-test-memory-source-credentials source))
-
 
 (defmethod credential-source-save
     ((source oauth-test-memory-credential-source)
@@ -28,39 +25,37 @@
   (setf (oauth-test-memory-source-credentials source) credentials)
   nil)
 
-
 (defclass oauth-test-refresh-manager (managed-credential-manager)
   ((gate-lock
-    :initform (make-lock "OAuth refresh test gate")
-    :reader oauth-test-refresh-manager-gate-lock
+    :initform      (make-lock "OAuth refresh test gate")
+    :reader        oauth-test-refresh-manager-gate-lock
     :documentation "The lock protecting this test manager's exchange gate.")
    (gate-condition
-    :initform (make-condition-variable :name "OAuth refresh test gate")
-    :reader oauth-test-refresh-manager-gate-condition
+    :initform      (make-condition-variable :name "OAuth refresh test gate")
+    :reader        oauth-test-refresh-manager-gate-condition
     :documentation "The condition variable controlling the test exchange.")
    (released-count
-    :initform 0
-    :accessor oauth-test-refresh-manager-released-count
-    :type (integer 0)
+    :initform      0
+    :accessor      oauth-test-refresh-manager-released-count
+    :type          (integer 0)
     :documentation "The number of synthetic exchanges allowed to leave the gate.")
    (exchange-count
-    :initform 0
-    :accessor oauth-test-refresh-manager-exchange-count
-    :type (integer 0)
+    :initform      0
+    :accessor      oauth-test-refresh-manager-exchange-count
+    :type          (integer 0)
     :documentation "The number of synthetic refresh exchanges that reached the gate.")
    (outcomes
-    :initarg :outcomes
-    :initform '(:success)
-    :accessor oauth-test-refresh-manager-outcomes
-    :type list
+    :initarg       :outcomes
+    :initform      '(:success)
+    :accessor      oauth-test-refresh-manager-outcomes
+    :type          list
     :documentation "The ordered synthetic outcomes for successive exchanges.")
    (refreshed-credentials
-    :initarg :refreshed-credentials
-    :reader oauth-test-refresh-manager-refreshed-credentials
-    :type oauth-credentials
+    :initarg       :refreshed-credentials
+    :reader        oauth-test-refresh-manager-refreshed-credentials
+    :type          oauth-credentials
     :documentation "The credentials returned by a successful synthetic exchange."))
   (:documentation "A fully gated refresh manager used for deterministic concurrency tests."))
-
 
 (defmethod credential-manager-refresh-exchange
     ((manager oauth-test-refresh-manager)
@@ -87,27 +82,25 @@
        (values (oauth-test-refresh-manager-refreshed-credentials manager) nil))
       (:failure
        (error 'token-refresh-failed
-              :message "Synthetic refresh failure."
-              :status nil
+              :message  "Synthetic refresh failure."
+              :status   nil
               :response nil))
       (:throw
        (throw 'oauth-test-refresh-abort ':abandoned)))))
 
-
 (defclass oauth-test-install-gated-refresh-manager
     (oauth-test-refresh-manager)
   ((install-count
-    :initform 0
-    :accessor oauth-test-refresh-manager-install-count
-    :type (integer 0)
+    :initform      0
+    :accessor      oauth-test-refresh-manager-install-count
+    :type          (integer 0)
     :documentation "The number of leader generations observed before exchange.")
    (install-blocked-p
-    :initform t
-    :accessor oauth-test-refresh-manager-install-blocked-p
-    :type boolean
+    :initform      t
+    :accessor      oauth-test-refresh-manager-install-blocked-p
+    :type          boolean
     :documentation "Whether leader installation waits at the deterministic test gate."))
   (:documentation "A refresh manager that can be interrupted after leader publication."))
-
 
 (defmethod credential-manager--refresh-generation-installed
     ((manager oauth-test-install-gated-refresh-manager)
@@ -124,37 +117,35 @@
               (oauth-test-refresh-manager-gate-lock manager))))
   nil)
 
-
 (defun oauth-test--refresh-fixture (&key (outcomes '(:success)))
   "Return a gated manager, memory source, and stale/fresh credentials."
   (let* ((pathname #P"/tmp/chatgpt-refresh-single-flight.sexp")
          (stale
            (make-instance 'oauth-credentials
-                          :access-token "stale-access"
+                          :access-token  "stale-access"
                           :refresh-token "rotating-refresh"
-                          :id-token nil
-                          :account-id "account-refresh"
-                          :expires-at nil
-                          :source-path pathname))
+                          :id-token      nil
+                          :account-id    "account-refresh"
+                          :expires-at    nil
+                          :source-path   pathname))
          (fresh
            (make-instance 'oauth-credentials
-                          :access-token "fresh-access"
+                          :access-token  "fresh-access"
                           :refresh-token "rotated-refresh"
-                          :id-token nil
-                          :account-id "account-refresh"
-                          :expires-at (+ (get-universal-time) 3600)
-                          :source-path pathname))
+                          :id-token      nil
+                          :account-id    "account-refresh"
+                          :expires-at    (+ (get-universal-time) 3600)
+                          :source-path   pathname))
          (source
            (make-instance 'oauth-test-memory-credential-source
-                          :pathname pathname
+                          :pathname    pathname
                           :credentials stale))
          (manager
            (make-instance 'oauth-test-refresh-manager
-                          :primary-source source
-                          :outcomes outcomes
+                          :primary-source        source
+                          :outcomes              outcomes
                           :refreshed-credentials fresh)))
     (values manager source stale fresh)))
-
 
 (defun oauth-test--wait-for-exchange-count (manager count)
   "Wait at most five seconds for MANAGER to begin COUNT synthetic exchanges."
@@ -166,7 +157,6 @@
                 (oauth-test-refresh-manager-gate-lock manager)))))
   nil)
 
-
 (defun oauth-test--release-refresh-exchange (manager)
   "Release the next numbered synthetic exchange for MANAGER."
   (with-lock-held ((oauth-test-refresh-manager-gate-lock manager))
@@ -175,13 +165,11 @@
      (oauth-test-refresh-manager-gate-condition manager)))
   nil)
 
-
 (defun oauth-test--current-refresh-generation (manager)
   "Return MANAGER's active refresh generation under its state lock."
   (with-lock-held ((credential-manager-refresh-lock manager))
     (or (credential-manager--refresh-generation manager)
         (error "The test manager has no active refresh generation."))))
-
 
 (defun oauth-test--wait-for-generation-waiter (generation)
   "Wait at most five seconds until GENERATION has an observable waiter."
@@ -193,7 +181,6 @@
                 (credential-refresh-generation-lock generation)))))
   nil)
 
-
 (defun oauth-test--wait-for-manager-idle (manager)
   "Wait at most five seconds until MANAGER exposes no active refresh generation."
   (sb-sys:with-deadline (:seconds 5)
@@ -204,7 +191,6 @@
                 (credential-manager-refresh-lock manager)))))
   nil)
 
-
 (defun oauth-test--join-thread (thread)
   "Join THREAD within five seconds and return its primary value."
   (let ((result (sb-thread:join-thread thread :timeout 5 :default ':timed-out)))
@@ -212,12 +198,11 @@
                  "the gated refresh test thread terminates within its bound")
     result))
 
-
 (defun oauth-test--single-flight-refresh ()
   "Test deterministic refresh success, failure replay, and non-local cleanup."
   (multiple-value-bind (manager source stale fresh)
       (oauth-test--refresh-fixture)
-    (let ((first-result nil)
+    (let ((first-result  nil)
           (second-result nil))
       (let ((first-thread
               (bordeaux-threads:make-thread
@@ -259,7 +244,7 @@
                  (credential-manager-refresh manager stale)
                (token-refresh-failed (condition)
                  condition))))
-      (let ((first-result nil)
+      (let ((first-result  nil)
             (second-result nil))
         (let ((first-thread
                 (bordeaux-threads:make-thread
@@ -298,7 +283,7 @@
                  condition))))
       (let ((leader-result nil)
             (waiter-result nil)
-            (next-result nil))
+            (next-result   nil))
         (let ((leader-thread
                 (bordeaux-threads:make-thread
                  (lambda () (setf leader-result (attempt-refresh)))
@@ -341,7 +326,7 @@
                  condition))))
       (let ((leader-result nil)
             (waiter-result nil)
-            (next-result nil))
+            (next-result   nil))
         (let ((leader-thread
                 (bordeaux-threads:make-thread
                  (lambda () (setf leader-result (attempt-refresh)))
@@ -408,7 +393,6 @@
            "a non-local leader exit broadcasts cleanup and leaves retryable state")))))
   nil)
 
-
 (defun oauth-test--leader-install-interruption ()
   "Interrupt a published refresh leader before exchange and prove cleanup wakes callers."
   (multiple-value-bind (base-manager source stale fresh)
@@ -417,7 +401,7 @@
     (let* ((manager
              (make-instance
               'oauth-test-install-gated-refresh-manager
-              :primary-source source
+              :primary-source        source
               :refreshed-credentials fresh))
            (leader-result nil)
            (waiter-result nil)
@@ -470,7 +454,6 @@
          "leader cleanup wakes waiters and leaves later refresh calls usable"))))
   nil)
 
-
 (defun oauth-test--rotated-refresh-token-reconciliation ()
   "Test source reconciliation notices refresh-token rotation without access rotation."
   (multiple-value-bind (manager source stale fresh)
@@ -478,12 +461,12 @@
     (declare (ignore fresh))
     (let ((rotated
             (make-instance 'oauth-credentials
-                           :access-token (oauth-credentials-access-token stale)
+                           :access-token  (oauth-credentials-access-token stale)
                            :refresh-token "externally-rotated-refresh"
-                           :id-token nil
-                           :account-id (oauth-credentials-account-id stale)
-                           :expires-at (+ (get-universal-time) 3600)
-                           :source-path (oauth-credentials-source-path stale))))
+                           :id-token      nil
+                           :account-id    (oauth-credentials-account-id stale)
+                           :expires-at    (+ (get-universal-time) 3600)
+                           :source-path   (oauth-credentials-source-path stale))))
       (setf (oauth-test-memory-source-credentials source) rotated)
       (cl-rfc8628/tests::check
        (and (eq (credential-manager-refresh manager stale) rotated)
@@ -497,10 +480,10 @@
                            :access-token "externally-rotated-access"
                            :refresh-token
                            (oauth-credentials-refresh-token credentials)
-                           :id-token nil
-                           :account-id (oauth-credentials-account-id credentials)
-                           :expires-at (+ (get-universal-time) 3600)
-                           :source-path (oauth-credentials-source-path credentials))))
+                           :id-token     nil
+                           :account-id   (oauth-credentials-account-id credentials)
+                           :expires-at   (+ (get-universal-time) 3600)
+                           :source-path  (oauth-credentials-source-path credentials))))
       (setf (oauth-test-memory-source-credentials source) access-only)
       (cl-rfc8628/tests::check
        (null (credential-manager-newer-rotation
@@ -509,12 +492,12 @@
        "refresh_token_reused rejects an access-only source rotation"))
     (let ((rotated
             (make-instance 'oauth-credentials
-                           :access-token (oauth-credentials-access-token credentials)
+                           :access-token  (oauth-credentials-access-token credentials)
                            :refresh-token "reused-recovery-refresh"
-                           :id-token nil
-                           :account-id (oauth-credentials-account-id credentials)
-                           :expires-at (+ (get-universal-time) 3600)
-                           :source-path (oauth-credentials-source-path credentials))))
+                           :id-token      nil
+                           :account-id    (oauth-credentials-account-id credentials)
+                           :expires-at    (+ (get-universal-time) 3600)
+                           :source-path   (oauth-credentials-source-path credentials))))
       (setf (oauth-test-memory-source-credentials source) rotated)
       (cl-rfc8628/tests::check
        (eq (credential-manager-newer-rotation
@@ -524,24 +507,21 @@
        "refresh_token_reused adopts a refresh-token-only source rotation")))
   nil)
 
-
 (defclass oauth-test-failing-source (oauth-test-memory-credential-source)
   ((failure :initarg :failure :reader oauth-test-source-failure
             :documentation "The condition signalled on every save."))
   (:documentation "A source that rejects publication with one shared condition."))
-
 
 (defmethod credential-source-save ((source oauth-test-failing-source) credentials)
   "Reject publication without changing the in-memory source."
   (declare (ignore credentials))
   (error (oauth-test-source-failure source)))
 
-
 (defun oauth-test--publication-failure ()
   "Share a failed store publication and retire the generation."
   (multiple-value-bind (manager source stale fresh) (oauth-test--refresh-fixture)
     (declare (ignore fresh))
-    (let* ((failure (make-condition 'token-refresh-failed :message "Store unavailable."))
+    (let* ((failure       (make-condition 'token-refresh-failed :message "Store unavailable."))
            (leader-result nil)
            (waiter-result nil))
       (change-class source 'oauth-test-failing-source :failure failure)
@@ -552,11 +532,11 @@
                                (token-refresh-failed (condition) condition)))))))
         (oauth-test--wait-for-exchange-count manager 1)
         (let* ((generation (oauth-test--current-refresh-generation manager))
-               (waiter (bordeaux-threads:make-thread
-                        (lambda ()
-                          (setf waiter-result
-                                (handler-case (credential-manager-refresh manager stale)
-                                  (token-refresh-failed (condition) condition)))))))
+               (waiter     (bordeaux-threads:make-thread
+                            (lambda ()
+                              (setf waiter-result
+                                    (handler-case (credential-manager-refresh manager stale)
+                                      (token-refresh-failed (condition) condition)))))))
           (oauth-test--wait-for-generation-waiter generation)
           (oauth-test--release-refresh-exchange manager)
           (oauth-test--join-thread leader)
@@ -567,16 +547,15 @@
                 (not (credential-manager--refresh-in-progress-p manager)))
            "publication failure is shared without publishing credentials"))))))
 
-
 (defun oauth-test--source-and-scope ()
   "Test bounded imports, continuity, fresh reads and secret-scope unwinding."
   (multiple-value-bind (unused source stale fresh) (oauth-test--refresh-fixture)
     (declare (ignore unused))
     (let* ((cl-rfc8628/tests::*saved-credentials* nil)
-           (primary (make-instance 'cl-rfc8628/tests::test-credential-source
-                                   :pathname #P"/test/primary.sexp"))
-           (manager (make-instance 'managed-credential-manager
-                                   :primary-source primary :bootstrap-source source)))
+           (primary                               (make-instance 'cl-rfc8628/tests::test-credential-source
+                                                                 :pathname #P"/test/primary.sexp"))
+           (manager                               (make-instance 'managed-credential-manager
+                                                                 :primary-source primary :bootstrap-source source)))
       (setf (oauth-test-memory-source-credentials source) fresh)
       (let ((imported (credential-manager-load manager)))
         (cl-rfc8628/tests::check
@@ -629,30 +608,29 @@
             (oauth-test-memory-source-credentials source)
             (make-instance 'oauth-credentials
                            :access-token "expired-access" :refresh-token nil
-                           :account-id (oauth-credentials-account-id fresh)
-                           :expires-at (1- (get-universal-time))
+                           :account-id  (oauth-credentials-account-id fresh)
+                           :expires-at  (1- (get-universal-time))
                            :source-path (credential-source-pathname source)))
       (cl-rfc8628/tests::check
        (handler-case (progn (credential-manager-load manager) nil)
          (credentials-unavailable () t))
        "expired bootstrap credentials cannot be imported"))))
 
-
 (defun oauth-test--static-credentials ()
   "Test environment credential sources and the static credential manager."
-  (let* ((variable "CL_RFC8628_STATIC_TEST_KEY")
+  (let* ((variable    "CL_RFC8628_STATIC_TEST_KEY")
          (environment (make-instance 'environment-credential-source
                                      :environment-variable variable
-                                     :account-id "static-test"
-                                     :pathname #p"/tmp/static-test.sexp"))
-         (stored (make-instance 'oauth-credentials :access-token "stored-key"
-                                                   :account-id "static-test"))
-         (primary (make-instance 'oauth-test-memory-credential-source
-                                 :pathname #p"/tmp/stored-key.sexp"
-                                 :credentials stored))
-         (manager (make-instance 'static-credential-manager
-                                 :primary-source primary
-                                 :bootstrap-source environment)))
+                                     :account-id           "static-test"
+                                     :pathname             #p"/tmp/static-test.sexp"))
+         (stored      (make-instance 'oauth-credentials :access-token "stored-key"
+                                                        :account-id   "static-test"))
+         (primary     (make-instance 'oauth-test-memory-credential-source
+                                     :pathname    #p"/tmp/stored-key.sexp"
+                                     :credentials stored))
+         (manager     (make-instance 'static-credential-manager
+                                     :primary-source   primary
+                                     :bootstrap-source environment)))
     (unwind-protect
          (progn
            (setf (uiop:getenv variable) "  ")

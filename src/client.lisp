@@ -35,26 +35,26 @@ to join their own condition hierarchy.")
 
 (define-condition device-authentication-error (error)
   ((message
-    :initarg :message
-    :reader device-authentication-error-message
-    :type string
+    :initarg       :message
+    :reader        device-authentication-error-message
+    :type          string
     :documentation "The complete non-secret failure description.")
    (stage
-    :initarg :stage
-    :reader device-authentication-error-stage
-    :type keyword
+    :initarg       :stage
+    :reader        device-authentication-error-stage
+    :type          keyword
     :documentation "The device flow stage that failed.")
    (status
-    :initarg :status
-    :initform nil
-    :reader device-authentication-error-status
-    :type (option integer)
+    :initarg       :status
+    :initform      nil
+    :reader        device-authentication-error-status
+    :type          (option integer)
     :documentation "The HTTP status associated with the failure, if known.")
    (code
-    :initarg :code
-    :initform nil
-    :reader device-authentication-error-code
-    :type (option string)
+    :initarg       :code
+    :initform      nil
+    :reader        device-authentication-error-code
+    :type          (option string)
     :documentation "A bounded non-secret OAuth error code, if supplied."))
   (:report (lambda (condition stream)
              (write-string (device-authentication-error-message condition)
@@ -65,80 +65,80 @@ to join their own condition hierarchy.")
   "Signal a structured device authentication failure without secret material."
   (error *device-authentication-error-class*
          :message message
-         :stage stage
-         :status status
-         :code code))
+         :stage   stage
+         :status  status
+         :code    code))
 
 
 ;;;; -- Device Authentication State --
 
 (defclass device-authorization ()
   ((verification-url
-    :initarg :verification-url
-    :reader device-authorization-verification-url
-    :type non-empty-string
+    :initarg       :verification-url
+    :reader        device-authorization-verification-url
+    :type          non-empty-string
     :documentation "The URL at which the user approves this authorization.")
    (user-code
-    :initarg :user-code
-    :reader device-authorization-user-code
-    :type non-empty-string
+    :initarg       :user-code
+    :reader        device-authorization-user-code
+    :type          non-empty-string
     :documentation "The one-time code displayed to the user.")
    (device-authorization-id
-    :initarg :device-authorization-id
-    :reader device-authorization-id
-    :type non-empty-string
+    :initarg       :device-authorization-id
+    :reader        device-authorization-id
+    :type          non-empty-string
     :documentation "The opaque server identifier used only while polling.")
    (poll-interval
-    :initarg :poll-interval
-    :reader device-authorization-poll-interval
-    :type (integer 1)
+    :initarg       :poll-interval
+    :reader        device-authorization-poll-interval
+    :type          (integer 1)
     :documentation "The server-requested number of seconds between polls."))
   (:documentation "The non-credential state of one pending device authorization."))
 
 (defclass device-authentication-client ()
   ((issuer
-    :initarg :issuer
-    :reader device-authentication-client-issuer
-    :type non-empty-string
+    :initarg       :issuer
+    :reader        device-authentication-client-issuer
+    :type          non-empty-string
     :documentation "The OAuth issuer, without a trailing slash.")
    (client-id
-    :initarg :client-id
-    :reader device-authentication-client-id
-    :type non-empty-string
+    :initarg       :client-id
+    :reader        device-authentication-client-id
+    :type          non-empty-string
     :documentation "The public OAuth client identifier.")
    (request-function
-    :initarg :request-function
-    :reader device-authentication-client-request-function
-    :type function
+    :initarg       :request-function
+    :reader        device-authentication-client-request-function
+    :type          function
     :documentation "The injected HTTP request function.")
    (poll-function
-    :initarg :poll-function
-    :reader device-authentication-client-poll-function
-    :type function
+    :initarg       :poll-function
+    :reader        device-authentication-client-poll-function
+    :type          function
     :documentation "The injected authorization polling function.")
    (sleep-function
-    :initarg :sleep-function
-    :initform #'sleep
-    :reader device-authentication-client-sleep-function
-    :type function
+    :initarg       :sleep-function
+    :initform      #'sleep
+    :reader        device-authentication-client-sleep-function
+    :type          function
     :documentation "The injected interruptible sleep function.")
    (clock-function
-    :initarg :clock-function
-    :initform #'device-authentication-monotonic-seconds
-    :reader device-authentication-client-clock-function
-    :type function
+    :initarg       :clock-function
+    :initform      #'device-authentication-monotonic-seconds
+    :reader        device-authentication-client-clock-function
+    :type          function
     :documentation "The injected monotonic clock function returning seconds.")
    (browser-function
-    :initarg :browser-function
-    :initform #'device-authentication-open-browser
-    :reader device-authentication-client-browser-function
-    :type function
+    :initarg       :browser-function
+    :initform      #'device-authentication-open-browser
+    :reader        device-authentication-client-browser-function
+    :type          function
     :documentation "The injected best-effort browser opening function.")
    (poll-timeout
-    :initarg :poll-timeout
-    :initform *device-authentication-timeout*
-    :reader device-authentication-client-poll-timeout
-    :type (integer 1)
+    :initarg       :poll-timeout
+    :initform      *device-authentication-timeout*
+    :reader        device-authentication-client-poll-timeout
+    :type          (integer 1)
     :documentation "The maximum number of seconds spent polling."))
   (:documentation "Replaceable effects and endpoints for device authentication."))
 
@@ -178,8 +178,8 @@ to join their own condition hierarchy.")
     ((client device-authentication-client)
      (manager credential-manager)
      &key
-       (stream *standard-output*)
-       (open-browser-p t))
+     (stream *standard-output*)
+     (open-browser-p t))
   "Run device authentication while keeping every credential off STREAM."
   (funcall
    *secret-region-function*
@@ -206,9 +206,9 @@ to join their own condition hierarchy.")
                 (t
                  (list "xdg-open" url)))))
         (uiop:launch-program command
-                             :input nil
-                             :output nil
-                             :error-output nil
+                             :input               nil
+                             :output              nil
+                             :error-output        nil
                              :ignore-error-status t)
         t)
     (error ()
@@ -231,17 +231,17 @@ to join their own condition hierarchy.")
   "Perform one device-flow HTTP request and return body, status, and headers."
   (unless (eq method :post)
     (device-authentication-fail
-     :stage ':transport
+     :stage   ':transport
      :message "Device authentication supports only HTTP POST requests."))
   (handler-case
       (multiple-value-bind (body status response-headers)
           (dexador:post url
-                        :headers headers
-                        :content content
-                        :force-string t
-                        :keep-alive nil
+                        :headers         headers
+                        :content         content
+                        :force-string    t
+                        :keep-alive      nil
                         :connect-timeout 30
-                        :read-timeout 60)
+                        :read-timeout    60)
         (values body status response-headers))
     (dexador.error:http-request-failed (condition)
       (values (or (dexador.error:response-body condition) "")
@@ -254,20 +254,20 @@ to join their own condition hierarchy.")
   (handler-case
       (multiple-value-bind (body status response-headers)
           (funcall (device-authentication-client-request-function client)
-                   :method ':post
-                   :url url
+                   :method  ':post
+                   :url     url
                    :headers headers
                    :content content)
         (unless (and (stringp body) (integerp status))
           (device-authentication-fail
-           :stage stage
+           :stage   stage
            :message "The device authentication transport returned an invalid response."))
         (values body status response-headers))
     (device-authentication-error (condition)
       (error condition))
     (error ()
       (device-authentication-fail
-       :stage stage
+       :stage   stage
        :message "The device authentication transport failed."))))
 
 (defun device-authentication-error-code-of-body (body secret-values)
@@ -298,40 +298,40 @@ to join their own condition hierarchy.")
   "POST CONTENT to URL and return its validated JSON object for STAGE."
   (multiple-value-bind (body status response-headers)
       (device-authentication-invoke-request
-       :client client
-       :url url
+       :client  client
+       :url     url
        :headers (list (cons "Content-Type" content-type)
                       (cons "Accept" "application/json")
                       (cons "User-Agent"
                             (device-authentication-user-agent)))
        :content content
-       :stage stage)
+       :stage   stage)
     (declare (ignore response-headers))
     (unless (device-authentication-success-status-p status)
       (let ((code
               (device-authentication-error-code-of-body
                body secret-values)))
         (device-authentication-fail
-         :stage stage
+         :stage   stage
          :message (if (and (eq stage :request-code) (= status 404))
                       "Device authentication is unavailable for this issuer."
                       (format nil "Device authentication failed during ~A~@[ (~A)~]."
                               stage
                               code))
-         :status status
-         :code code)))
+         :status  status
+         :code    code)))
     (handler-case
         (let ((document (json-decode body)))
           (if (json-object-p document)
               document
               (device-authentication-fail
-               :stage stage
+               :stage   stage
                :message "The device authentication response was not a JSON object.")))
       (device-authentication-error (condition)
         (error condition))
       (error ()
         (device-authentication-fail
-         :stage stage
+         :stage   stage
          :message "The device authentication response contained invalid JSON.")))))
 
 (defun device-authentication-poll-interval (value)
@@ -350,7 +350,7 @@ to join their own condition hierarchy.")
              nil))))
     (unless (and interval (plusp interval))
       (device-authentication-fail
-       :stage ':request-code
+       :stage   ':request-code
        :message "The device authorization response contained an invalid polling interval."))
     interval))
 

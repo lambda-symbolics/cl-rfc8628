@@ -4,35 +4,35 @@
 
 (defclass oauth-credentials ()
   ((access-token
-    :initarg :access-token
-    :reader oauth-credentials-access-token
-    :type non-empty-string
+    :initarg       :access-token
+    :reader        oauth-credentials-access-token
+    :type          non-empty-string
     :documentation "The bearer token used for one provider request scope.")
    (refresh-token
-    :initarg :refresh-token
-    :reader oauth-credentials-refresh-token
-    :type (option string)
+    :initarg       :refresh-token
+    :reader        oauth-credentials-refresh-token
+    :type          (option string)
     :documentation "The rotating OAuth refresh token, if available.")
    (id-token
-    :initarg :id-token
-    :initform nil
-    :reader oauth-credentials-id-token
-    :type (option string)
+    :initarg       :id-token
+    :initform      nil
+    :reader        oauth-credentials-id-token
+    :type          (option string)
     :documentation "The OpenID token, if supplied by the OAuth server.")
    (account-id
-    :initarg :account-id
-    :reader oauth-credentials-account-id
-    :type non-empty-string
+    :initarg       :account-id
+    :reader        oauth-credentials-account-id
+    :type          non-empty-string
     :documentation "The stable account identity these credentials belong to.")
    (expires-at
-    :initarg :expires-at
-    :reader oauth-credentials-expires-at
-    :type (option timestamp)
+    :initarg       :expires-at
+    :reader        oauth-credentials-expires-at
+    :type          (option timestamp)
     :documentation "The access-token expiration in universal time, if known.")
    (source-path
-    :initarg :source-path
-    :reader oauth-credentials-source-path
-    :type pathname
+    :initarg       :source-path
+    :reader        oauth-credentials-source-path
+    :type          pathname
     :documentation "The file from which these request-scoped credentials came."))
   (:documentation "OAuth material held only inside request scope."))
 
@@ -63,7 +63,7 @@
 (defun jwt-payload (token)
   "Decode TOKEN's unverified JWT payload, returning NIL for malformed input."
   (handler-case
-      (let* ((first-dot (position #\. token))
+      (let* ((first-dot  (position #\. token))
              (second-dot (and first-dot
                               (position #\. token :start (1+ first-dot)))))
         (when second-dot
@@ -78,7 +78,7 @@
 
 (defun jwt-expiration (token)
   "Return TOKEN's unverified JWT expiration as universal time."
-  (let* ((payload (jwt-payload token))
+  (let* ((payload         (jwt-payload token))
          (unix-expiration (and payload (json-get payload "exp"))))
     (when (integerp unix-expiration)
       (unix-time->universal-time unix-expiration))))

@@ -1,23 +1,22 @@
 (in-package #:cl-rfc8628)
 
-
 ;;;; -- Environment Credential Sources --
 
 (defclass environment-credential-source (credential-source)
   ((environment-variable
-    :initarg :environment-variable
-    :reader environment-credential-source-environment-variable
-    :type string
+    :initarg       :environment-variable
+    :reader        environment-credential-source-environment-variable
+    :type          string
     :documentation "The environment variable holding the static credential.")
    (account-id
-    :initarg :account-id
-    :reader environment-credential-source-account-id
-    :type string
+    :initarg       :account-id
+    :reader        environment-credential-source-account-id
+    :type          string
     :documentation "The synthetic account identifier pinned for the credential.")
    (pathname
-    :initarg :pathname
-    :initform nil
-    :reader environment-credential-source--pathname
+    :initarg       :pathname
+    :initform      nil
+    :reader        environment-credential-source--pathname
     :documentation "The path reported for this source, or NIL; the environment has none."))
   (:documentation
    "A read-only source loading one static credential, such as an API key, from the environment."))
@@ -36,12 +35,12 @@
   (let ((value (uiop:getenv (environment-credential-source-environment-variable source))))
     (when (non-empty-string-p value)
       (make-instance 'oauth-credentials
-                     :access-token value
+                     :access-token  value
                      :refresh-token nil
-                     :id-token nil
-                     :account-id (environment-credential-source-account-id source)
-                     :expires-at nil
-                     :source-path (credential-source-pathname source)))))
+                     :id-token      nil
+                     :account-id    (environment-credential-source-account-id source)
+                     :expires-at    nil
+                     :source-path   (credential-source-pathname source)))))
 
 (defmethod credential-source-save ((source environment-credential-source) credentials)
   "Refuse to write SOURCE, because the environment is read-only."
@@ -64,16 +63,16 @@ precedence over the stored primary credential while it holds a value."))
 (defmethod credential-manager-load ((manager static-credential-manager))
   "Load the bootstrap credential when present, then the primary one."
   (let ((bootstrap (credential-manager-bootstrap-source manager))
-        (primary (credential-manager-primary-source manager)))
+        (primary   (credential-manager-primary-source manager)))
     (credential-manager-accept-account
      manager
      (or (and bootstrap (credential-source-load bootstrap))
          (credential-source-load primary)
          (error *credentials-unavailable-class*
-                :message (format nil "No ~A ~A is available; ~A."
-                                 (credential-manager-provider-label manager)
-                                 (credential-manager-credential-description manager)
-                                 (credential-manager-login-hint manager))
+                :message        (format nil "No ~A ~A is available; ~A."
+                                        (credential-manager-provider-label manager)
+                                        (credential-manager-credential-description manager)
+                                        (credential-manager-login-hint manager))
                 :searched-paths (remove nil (list (credential-source-pathname primary))))))))
 
 (defmethod credential-manager-refreshable-p ((manager static-credential-manager))
