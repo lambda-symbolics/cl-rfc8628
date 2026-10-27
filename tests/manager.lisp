@@ -526,7 +526,8 @@
 
 
 (defclass oauth-test-failing-source (oauth-test-memory-credential-source)
-  ((failure :initarg :failure :reader oauth-test-source-failure))
+  ((failure :initarg :failure :reader oauth-test-source-failure
+            :documentation "The condition signalled on every save."))
   (:documentation "A source that rejects publication with one shared condition."))
 
 

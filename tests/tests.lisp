@@ -1,6 +1,7 @@
 (in-package #:cl-rfc8628/tests)
 
-(defvar *assertions* 0)
+(defvar *assertions* 0
+  "The number of assertions checked in the current run.")
 
 (defun check (value control &rest arguments)
   "Count one assertion and fail with CONTROL unless VALUE is true."
@@ -11,35 +12,46 @@
 
 ;;;; -- Test Store --
 
-(defvar *saved-credentials* nil)
+(defvar *saved-credentials* nil
+  "The credentials the test credential source last saved.")
 
 (defclass test-credential-source (credential-source)
   ((pathname
-    :initarg :pathname
-    :reader test-credential-source-pathname)))
+    :initarg       :pathname
+    :reader        test-credential-source-pathname
+    :documentation "The path this source reports for its credentials."))
+  (:documentation "A credential source that keeps its credentials in *saved-credentials*."))
 
 (defmethod credential-source-pathname ((source test-credential-source))
+  "Return the path SOURCE was created with."
   (test-credential-source-pathname source))
 
 (defmethod credential-source-save
     ((source test-credential-source) (credentials oauth-credentials))
+  "Store CREDENTIALS in *saved-credentials*."
   (setf *saved-credentials* credentials))
 
 (defmethod credential-source-load ((source test-credential-source))
+  "Return the credentials in *saved-credentials*."
   *saved-credentials*)
 
 (defmethod credential-source-label ((source test-credential-source))
+  "Return the label of the test credential source."
   "the test credential source")
 
 (defclass test-credential-manager (credential-manager)
   ((source
-    :initarg :source
-    :reader test-credential-manager-source)))
+    :initarg       :source
+    :reader        test-credential-manager-source
+    :documentation "The primary credential source."))
+  (:documentation "A credential manager with one test credential source."))
 
 (defmethod credential-manager-primary-source ((manager test-credential-manager))
+  "Return the source MANAGER was created with."
   (test-credential-manager-source manager))
 
 (defun test-manager ()
+  "Return a test credential manager with a fresh test credential source."
   (make-instance
    'test-credential-manager
    :source (make-instance
@@ -50,6 +62,7 @@
 ;;;; -- Wire Helpers --
 
 (defun base64url (source)
+  "Return SOURCE in unpadded base64url."
   (string-right-trim
    "."
    (cl-base64:string-to-base64-string source :uri t)))
@@ -62,15 +75,18 @@
           (base64url "signature")))
 
 (defun url-suffix-p (url suffix)
+  "Return true when URL ends with SUFFIX."
   (let ((mismatch (mismatch suffix url :from-end t)))
     (or (null mismatch) (zerop mismatch))))
 
 (defun request-named (requests suffix)
+  "Return the first of REQUESTS whose URL ends with SUFFIX."
   (find-if (lambda (request)
              (url-suffix-p (getf request :url) suffix))
            requests))
 
 (defun token-response (&key (subject "user-1"))
+  "Return a JSON token response whose tokens name SUBJECT."
   (json-encode
    (json-object
     "access_token" (jwt (json-object "sub" subject))
@@ -79,6 +95,7 @@
     "id_token" (jwt (json-object "sub" subject)))))
 
 (defun request-code-response (&key (user-code "USER-CODE"))
+  "Return a JSON device authorization response carrying USER-CODE."
   (json-encode
    (json-object
     "device_code" "device-code-1"
@@ -93,6 +110,7 @@
                            (sleep-function #'identity)
                            (clock-function (constantly 0))
                            (browser-function (constantly t)))
+  "Return a test RFC 8628 client that uses the given transport and host functions."
   (make-instance
    'rfc8628-device-authentication-client
    :issuer "https://issuer.test"

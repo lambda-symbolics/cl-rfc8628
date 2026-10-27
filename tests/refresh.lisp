@@ -15,16 +15,20 @@
   (:documentation "An in-memory primary source for refresh grant tests."))
 
 (defmethod credential-source-load ((source refresh-test-source))
+  "Return the credentials SOURCE holds."
   (refresh-test-source-credentials source))
 
 (defmethod credential-source-save ((source refresh-test-source) (credentials oauth-credentials))
+  "Store CREDENTIALS in SOURCE and count the save."
   (incf (refresh-test-source-saves source))
   (setf (refresh-test-source-credentials source) credentials))
 
 (defmethod credential-source-pathname ((source refresh-test-source))
+  "Return the path the refresh test store reports."
   #P"/tmp/cl-rfc8628-tests/refresh.sexp")
 
 (defmethod credential-source-label ((source refresh-test-source))
+  "Return the label of the refresh test store."
   "the refresh test store")
 
 (defclass refresh-test-manager (refresh-grant-credential-manager)
@@ -58,22 +62,28 @@
   (:documentation "A refresh grant manager with a scripted transport and observable lock."))
 
 (defmethod credential-manager-provider-label ((manager refresh-test-manager))
+  "Return the test provider name."
   "Portal")
 
 (defmethod credential-manager-login-hint ((manager refresh-test-manager))
+  "Return the test login hint."
   "log in to the portal")
 
 (defmethod credential-manager-token-endpoint ((manager refresh-test-manager))
+  "Return the test token endpoint URL."
   "https://portal.example/oauth/token")
 
 (defmethod credential-manager-client-id ((manager refresh-test-manager))
+  "Return the test client identifier."
   "portal-client")
 
 (defmethod credential-manager-refresh-content-type ((manager refresh-test-manager))
+  "Return the request encoding MANAGER was created with."
   (refresh-test-manager-content-type manager))
 
 (defmethod credential-manager-refresh-request
     ((manager refresh-test-manager) &key url headers content)
+  "Record the request and return or signal the next queued reply."
   (push (list :url url :headers headers :content content
               :locked-p (refresh-test-manager-locked-p manager))
         (refresh-test-manager-requests manager))
@@ -84,6 +94,7 @@
 
 (defmethod credential-manager-call-with-refresh-lock
     ((manager refresh-test-manager) (function function))
+  "Count the lock entry, run the lock action, and call FUNCTION with the lock marked held."
   (incf (refresh-test-manager-lock-entries manager))
   (when (refresh-test-manager-lock-action manager)
     (funcall (refresh-test-manager-lock-action manager)))
@@ -97,6 +108,7 @@
 
 (defmethod credential-manager-validate-refresh-response
     ((manager refresh-test-rotating-manager) document (credentials oauth-credentials))
+  "Signal a refresh failure unless DOCUMENT carries a new refresh token."
   (unless (and (stringp (json-get document "refresh_token"))
                (string/= (json-get document "refresh_token")
                          (oauth-credentials-refresh-token credentials)))
@@ -105,6 +117,7 @@
 
 (defmethod credential-manager-validate-credentials
     ((manager refresh-test-rotating-manager) (credentials oauth-credentials))
+  "Signal unavailable credentials when the access token is the unusable test token."
   (when (string= (oauth-credentials-access-token credentials) "unusable-access")
     (error *credentials-unavailable-class*
            :message "The stored portal credentials are unusable."
