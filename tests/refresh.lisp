@@ -156,9 +156,9 @@
                   (equal (quri:url-decode-params (getf request :content))
                          '(("grant_type" . "refresh_token") ("refresh_token" . "old-refresh")
                            ("client_id" . "portal-client")))
-                  (equal (cdr (assoc "Content-Type" headers :test #'string=))
+                  (equal (rest (assoc "Content-Type" headers :test #'string=))
                          *refresh-form-content-type*)
-                  (equal (cdr (assoc "Accept" headers :test #'string=)) "application/json")
+                  (equal (rest (assoc "Accept" headers :test #'string=)) "application/json")
                   (assoc "User-Agent" headers :test #'string=))
              "a refresh form-encodes the grant and declares its media types")))
   (let ((manager (refresh-test--manager
