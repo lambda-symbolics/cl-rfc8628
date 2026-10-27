@@ -119,9 +119,23 @@ Returns SOURCE itself, not a copy, when SECRET is empty or absent."
                         nonempty-secrets))
                    return character)))
     (unless sentinel
-      (error "No credential-safe redaction marker is available."))
+      (error 'redaction-marker-unavailable :secret-count (length nonempty-secrets)))
     (if (notany (lambda (secret)
                   (search secret preferred))
                 nonempty-secrets)
         (format nil "~C~A~C" sentinel preferred sentinel)
         (string sentinel))))
+
+
+;;;; -- Conditions --
+
+(define-condition redaction-marker-unavailable (error)
+  ((secret-count
+    :initarg       :secret-count
+    :reader        redaction-marker-unavailable-secret-count
+    :type          (integer 0)
+    :documentation "The number of nonempty secrets the marker had to avoid."))
+  (:report (lambda (condition stream)
+             (format stream "Every redaction marker character occurs in one of ~D secrets."
+                     (redaction-marker-unavailable-secret-count condition))))
+  (:documentation "Signalled when every candidate marker character occurs in some secret."))

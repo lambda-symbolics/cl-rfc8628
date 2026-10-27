@@ -24,6 +24,8 @@
    #:redact-exact-string-value
    #:redact-exact-string-values
    #:safe-redaction-marker
+   #:redaction-marker-unavailable
+   #:redaction-marker-unavailable-secret-count
    #:unix-time->universal-time
    ;; credentials and store protocol
    #:credential-manager
