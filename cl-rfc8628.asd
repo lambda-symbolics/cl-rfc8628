@@ -27,7 +27,8 @@
   :serial t
   :components ((:module "tests"
                 :serial t
-                :components ((:file "tests")
+                :components ((:file "package")
+                             (:file "tests")
                              (:file "manager")
                              (:file "refresh"))))
   :perform (asdf:test-op (operation component)

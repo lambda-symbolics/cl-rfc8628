@@ -1,7 +1,3 @@
-(defpackage #:cl-rfc8628/tests
-  (:use #:cl #:cl-rfc8628)
-  (:export #:run-tests))
-
 (in-package #:cl-rfc8628/tests)
 
 (defvar *assertions* 0)
