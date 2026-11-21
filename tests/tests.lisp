@@ -164,10 +164,10 @@
                   (1
                    (values (json-encode
                             (json-object "error" "authorization_pending"))
-                           400 nil))
+                           200 nil))
                   (2
                    (values (json-encode (json-object "error" "slow_down"))
-                           400 nil))
+                           200 nil))
                   (t
                    (values (token-response) 200 nil))))
                (t
@@ -260,6 +260,11 @@
     (expect-failure
      (lambda ()
        (login (poll-responder
+               (json-encode (json-object "error" "access_denied")) 200)))
+     ':poll :status 200 :code "access_denied")
+    (expect-failure
+     (lambda ()
+       (login (poll-responder
                (json-encode (json-object "error" "expired_token")) 400)))
      ':poll :status 400 :code "expired_token")
     (expect-failure
@@ -341,6 +346,25 @@
     (check (not (search "MARK" marker))
            "the redaction marker never contains a secret")))
 
+(defun test-client-configuration ()
+  "Verify RFC client defaults, normalized issuer, and invalid configuration."
+  (flet ((client (issuer client-id timeout)
+           (make-instance 'rfc8628-device-authentication-client
+                          :issuer issuer :client-id client-id :poll-timeout timeout
+                          :device-code-path "/device" :token-path "/token" :scope "openid")))
+    (let ((instance (client "https://issuer.test///" "client" 5)))
+      (check (string= (cl-rfc8628:device-authentication-client-issuer instance)
+                      "https://issuer.test")
+             "the client normalizes the issuer")
+      (check (functionp (cl-rfc8628:device-authentication-client-request-function instance))
+             "the client supplies its request default")
+      (check (functionp (cl-rfc8628:device-authentication-client-poll-function instance))
+             "the client supplies its polling default"))
+    (dolist (configuration '(("///" "client" 5)
+                             ("https://issuer.test" "" 5)
+                             ("https://issuer.test" "client" 0)))
+      (expect-failure (lambda () (apply #'client configuration)) ':configuration))))
+
 
 ;;;; -- Entry --
 
@@ -348,6 +372,7 @@
   "Run the cl-rfc8628 tests and return true on success."
   (setf *assertions* 0)
   (test-support)
+  (test-client-configuration)
   (test-complete-flow)
   (test-rejections)
   (test-request-code-validation)

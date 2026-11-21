@@ -27,7 +27,23 @@
     :reader        rfc8628-device-authentication-client-request-code-parameters
     :type          list
     :documentation "Additional non-secret form parameters for device authorization."))
+  (:default-initargs
+   :request-function #'device-authentication-request
+   :poll-function #'rfc8628-device-authentication-poll-for-tokens)
   (:documentation "A configurable RFC 8628 OAuth device authorization client."))
+
+(defmethod initialize-instance :after
+    ((client rfc8628-device-authentication-client) &key)
+  "Validate shared RFC 8628 configuration and normalize the issuer."
+  (let* ((issuer     (device-authentication-client-issuer client))
+         (normalized (and (stringp issuer) (string-right-trim '(#\/) issuer)))
+         (timeout    (device-authentication-client-poll-timeout client)))
+    (unless (and (non-empty-string-p normalized)
+                 (non-empty-string-p (device-authentication-client-id client))
+                 (integerp timeout) (plusp timeout))
+      (device-authentication-fail :stage   ':configuration
+                                  :message "Device authentication configuration is invalid."))
+    (setf (slot-value client 'issuer) normalized)))
 
 (defclass rfc8628-device-authorization (device-authorization)
   ((issued-at
@@ -230,51 +246,42 @@
            :content content
            :stage   ':poll)
         (declare (ignore response-headers))
-        (if (device-authentication-success-status-p status)
-            (let ((document
-                    (handler-case
-                        (json-decode body)
-                      (error ()
-                        (device-authentication-fail
-                         :stage ':poll
-                         :message
-                         "The approved device response contained invalid JSON.")))))
-              (unless (json-object-p document)
-                (device-authentication-fail
-                 :stage ':poll
-                 :message
-                 "The approved device response was not a JSON object."))
-              (return document))
-            (let ((code
-                    (device-authentication-error-code-of-body
-                     body
-                     (list (device-authorization-id authorization) content))))
-              (cond
-                ((equal code "authorization_pending")
-                 nil)
-                ((equal code "slow_down")
-                 (incf interval *rfc8628-device-slow-down-increment*))
-                ((equal code "access_denied")
-                 (device-authentication-fail
-                  :stage   ':poll
-                  :message "The authorization request was denied."
-                  :status  status
-                  :code    code))
-                ((equal code "expired_token")
-                 (device-authentication-fail
-                  :stage   ':poll
-                  :message "The device code expired before approval."
-                  :status  status
-                  :code    code))
-                (t
-                 (device-authentication-fail
-                  :stage  ':poll
-                  :message
-                  (format nil
-                          "Device authorization was not completed~@[ (~A)~]."
-                          code)
-                  :status status
-                  :code   code)))))))))
+        (let* ((success-p       (device-authentication-success-status-p status))
+               (document
+                 (when success-p
+                   (handler-case
+                       (json-decode body)
+                     (error ()
+                       (device-authentication-fail
+                        :stage   ':poll
+                        :message "The approved device response contained invalid JSON.")))))
+               (error-present-p (and (json-object-p document)
+                                     (nth-value 1 (gethash "error" document))))
+               (code            (device-authentication-error-code-of-body
+                                 body (list (device-authorization-id authorization) content))))
+          (when (and success-p (not (json-object-p document)))
+            (device-authentication-fail
+             :stage ':poll :message "The approved device response was not a JSON object."))
+          (when (and success-p (not error-present-p))
+            (return document))
+          (cond
+            ((equal code "authorization_pending")
+             nil)
+            ((equal code "slow_down")
+             (incf interval *rfc8628-device-slow-down-increment*))
+            ((equal code "access_denied")
+             (device-authentication-fail
+              :stage ':poll :message "The authorization request was denied."
+              :status status :code code))
+            ((equal code "expired_token")
+             (device-authentication-fail
+              :stage ':poll :message "The device code expired before approval."
+              :status status :code code))
+            (t
+             (device-authentication-fail
+              :stage   ':poll
+              :message (format nil "Device authorization was not completed~@[ (~A)~]." code)
+              :status status :code code))))))))
 
 (defun rfc8628-device-authentication--credentials
     (client document source-path)
