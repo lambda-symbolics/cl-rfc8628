@@ -108,7 +108,8 @@
 (defun client-create (&key request-function
                            (sleep-function #'identity)
                            (clock-function (constantly 0))
-                           (browser-function (constantly t)))
+                           (browser-function (constantly t))
+                           (poll-timeout cl-rfc8628::*device-authentication-timeout*))
   "Return a test RFC 8628 client that uses the given transport and host functions."
   (make-instance
    'rfc8628-device-authentication-client
@@ -121,7 +122,8 @@
    :poll-function    #'rfc8628-device-authentication-poll-for-tokens
    :sleep-function   sleep-function
    :clock-function   clock-function
-   :browser-function browser-function))
+   :browser-function browser-function
+   :poll-timeout     poll-timeout))
 
 (defun expect-failure (thunk stage &key status code)
   "Require THUNK to fail at STAGE with optional STATUS and CODE."
@@ -232,12 +234,13 @@
 
 (defun test-rejections ()
   "Test denial, expiry, timeout, and malformed server responses."
-  (labels ((client-for (responder)
+  (labels ((client-for (responder poll-timeout)
              (let ((clock 0))
                (client-create
                 :request-function responder
                 :sleep-function   (lambda (seconds) (incf clock seconds))
-                :clock-function   (lambda () clock))))
+                :clock-function   (lambda () clock)
+                :poll-timeout     poll-timeout)))
 
            (poll-responder (body status)
              (lambda (&key method url headers content)
@@ -246,9 +249,9 @@
                    (values (request-code-response) 200 nil)
                    (values body status nil))))
 
-           (login (responder)
+           (login (responder &key (poll-timeout cl-rfc8628::*device-authentication-timeout*))
              (device-authentication-login
-              (client-for responder)
+              (client-for responder poll-timeout)
               (test-manager)
               :stream         (make-string-output-stream)
               :open-browser-p nil)))
@@ -278,7 +281,21 @@
                  400)))
        ':poll)
       (check (null *saved-credentials*)
-             "an endless pending authorization publishes no credentials"))))
+             "an endless pending authorization publishes no credentials"))
+    (let ((poll-count 0))
+      (expect-failure
+       (lambda ()
+         (login (lambda (&key method url headers content)
+                  (declare (ignore method headers content))
+                  (if (url-suffix-p url "/oauth2/device/code")
+                      (values (request-code-response) 200 nil)
+                      (progn
+                        (incf poll-count)
+                        (values (json-encode (json-object "error" "authorization_pending"))
+                                400 nil))))
+                :poll-timeout 3))
+       ':poll)
+      (check (= poll-count 1) "polling does not issue a request at the deadline"))))
 
 
 ;;;; -- Request Code Validation --
@@ -315,6 +332,26 @@
           "user_code" "USER-CODE"
           "verification_uri" "javascript:alert(1)"
           "expires_in" 600))))
+     ':request-code)
+    (expect-failure
+     (lambda ()
+       (request-code
+        (json-encode
+         (json-object
+          "device_code" "device-code-1"
+          "user_code" "USER-CODE"
+          "verification_uri" "https://issuer.test/activate"
+          "verification_uri_complete" "http://localhost.evil.example/activate"
+          "expires_in" 600))))
+     ':request-code)
+    (expect-failure
+     (lambda ()
+       (request-code
+        (json-encode
+         (json-object
+          "device_code" "device-code-1"
+          "user_code" "USER-CODE"
+          "verification_uri" "https://issuer.test/activate"))))
      ':request-code)))
 
 
